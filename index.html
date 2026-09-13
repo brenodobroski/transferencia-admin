@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transferências — Painel Admin</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/jpeg" href="logo-site.jpg">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        @keyframes pageFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        * { font-family: 'Inter', system-ui, sans-serif; }
+        body { animation: pageFadeIn 0.25s ease-out; }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        #sidebar { transition: width 0.3s ease, transform 0.3s ease; }
+        #main-content { transition: margin-left 0.3s ease; }
+        .nav-text, .profile-info, .logo-text { transition: opacity 0.2s ease; }
+
+        .sidebar-collapsed .nav-text,
+        .sidebar-collapsed .profile-info,
+        .sidebar-collapsed .logo-text { display: none; }
+        .sidebar-collapsed { width: 80px !important; }
+        .sidebar-collapsed-margin { margin-left: 80px !important; }
+
+        .custom-dropdown .seta { transition: transform 0.15s ease; }
+        .custom-dropdown .seta.girada { transform: rotate(180deg); }
+    </style>
+<base target="_blank">
+</head>
+<body class="bg-slate-50 text-slate-900 overflow-x-hidden">
+
+    <!-- ==================== TELA DE LOGIN ==================== -->
+    <div id="tela-login" class="w-full h-screen flex fixed inset-0 z-50 bg-white">
+
+        <!-- Painel esquerdo -->
+        <div class="relative flex-1 overflow-hidden hidden md:block" style="background: linear-gradient(150deg, #0a1628 0%, #1a3254 55%, #0f172a 100%);">
+            <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle at 20% 30%, #1d4ed8 0%, transparent 40%), radial-gradient(circle at 80% 70%, #3b82f6 0%, transparent 35%);"></div>
+            <div class="relative z-10 h-full flex flex-col justify-between p-10">
+                <div>
+                    <div style="width: 3px; height: 40px; background: #3b82f6; border-radius: 2px; margin-bottom: 1.5rem;"></div>
+                    <h2 class="text-5xl font-bold text-white leading-tight" style="letter-spacing: -1px;">
+                        Transferências<br><span class="text-blue-300">Clima Rio</span>
+                    </h2>
+                </div>
+                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded w-fit" style="background: rgba(10,22,40,0.55); backdrop-filter: blur(6px); border: 0.5px solid rgba(255,255,255,0.12);">
+                    <div style="width: 6px; height: 6px; background: #22c55e; border-radius: 50%; flex-shrink: 0;"></div>
+                    <span class="text-xs text-slate-300 font-medium">Painel Administrativo</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Painel direito -->
+        <div class="flex flex-col justify-between bg-white w-full md:w-[420px] md:flex-shrink-0 p-8 md:p-10">
+            <div class="flex flex-col justify-center flex-1">
+                <div class="mb-8">
+                    <img src="./LOGO_CLIMARIO_OFICIAL.png" alt="Climario" class="h-8 object-contain mb-6">
+                    <h3 class="text-lg font-bold text-slate-900 mb-1">Acesso Administrativo</h3>
+                    <p class="text-xs text-slate-400 mb-7">Entre com seu e-mail corporativo</p>
+                </div>
+
+                <form id="login-form" class="space-y-4">
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">E-mail</label>
+                        <input type="email" id="login-email" required placeholder="voce@climario.com.br"
+                               class="w-full px-3 py-2.5 rounded border text-sm outline-none transition-all bg-slate-50 text-slate-900 border-slate-200 focus:ring-2 focus:ring-blue-700/20 focus:border-blue-700">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Senha</label>
+                        <input type="password" id="login-senha" required placeholder="••••••••"
+                               class="w-full px-3 py-2.5 rounded border text-sm outline-none transition-all bg-slate-50 text-slate-900 border-slate-200 focus:ring-2 focus:ring-blue-700/20 focus:border-blue-700">
+                    </div>
+                    <p id="login-erro" class="text-xs text-red-600 font-medium hidden"></p>
+                    <button type="submit" id="login-botao" class="w-full bg-blue-700 hover:bg-blue-800 active:scale-[0.98] text-white font-semibold py-2.5 rounded transition-all text-xs uppercase tracking-widest mt-1">
+                        Entrar
+                    </button>
+                    <p class="text-[10px] text-slate-400 leading-relaxed">Primeiro acesso? Cadastre-se pelo app da loja e depois rode no SQL Editor:<br><code class="bg-slate-100 px-1 rounded">update usuarios set role='admin' where email='seu@email';</code></p>
+                </form>
+            </div>
+            <p class="text-[10.5px] text-slate-500 text-right pt-4 border-t border-slate-100">Painel Admin · Transferências Clima Rio</p>
+        </div>
+    </div>
+
+    <!-- ==================== APP ==================== -->
+    <div id="app" class="hidden">
+
+        <!-- Topbar mobile -->
+        <div class="md:hidden flex items-center justify-between bg-slate-950 text-white p-4 sticky top-0 z-40 shadow-md">
+            <div class="flex items-center">
+                <img src="./logo-site.jpg" alt="Climario" class="w-8 rounded-lg mr-3">
+                <span class="font-bold text-lg tracking-tight">Transferências <span class="text-slate-500 text-sm">Admin</span></span>
+            </div>
+            <button onclick="toggleMobileMenu()" class="text-slate-300 hover:text-white focus:outline-none">
+                <i class="fas fa-bars text-2xl"></i>
+            </button>
+        </div>
+
+        <div id="sidebar-backdrop" onclick="toggleMobileMenu()" class="fixed inset-0 bg-slate-900 bg-opacity-50 z-40 hidden md:hidden backdrop-blur-sm"></div>
+
+        <div class="flex">
+
+            <!-- Sidebar -->
+            <aside id="sidebar" class="w-64 bg-slate-900 text-slate-300 flex-shrink-0 flex flex-col h-screen fixed left-0 top-0 border-r border-slate-800 z-50 transform -translate-x-full md:translate-x-0">
+                <div class="h-16 flex items-center justify-between px-5 border-b border-slate-800 bg-slate-950 overflow-hidden">
+                    <div class="flex items-center flex-shrink-0">
+                        <img class="logo-text h-7 object-contain" src="./LOGO_CLIMARIO_NEGATIVO.png" alt="Climario">
+                    </div>
+                    <button onclick="toggleSidebarDesktop()" class="hidden md:flex text-slate-500 hover:text-white p-1 ml-1">
+                        <i id="toggle-icon" class="fas fa-chevron-left"></i>
+                    </button>
+                    <button onclick="toggleMobileMenu()" class="md:hidden text-slate-400 hover:text-white">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+
+                <nav class="flex-1 py-3 space-y-0.5 overflow-y-auto custom-scrollbar overflow-x-hidden">
+                    <button onclick="mudarAba('inicio')" id="btn-aba-inicio" class="w-full flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm font-medium border-l-2 rounded-r-sm transition-colors border-blue-400 bg-slate-800 text-slate-200">
+                        <i class="fas fa-home flex-shrink-0 w-4 text-center"></i>
+                        <span class="nav-text whitespace-nowrap">Início</span>
+                    </button>
+                    <button onclick="mudarAba('calendario')" id="btn-aba-calendario" class="w-full flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-l-2 border-transparent rounded-r-sm transition-colors">
+                        <i class="fas fa-calendar-day flex-shrink-0 w-4 text-center"></i>
+                        <span class="nav-text whitespace-nowrap">Calendário</span>
+                    </button>
+                    <button onclick="mudarAba('sugestoes')" id="btn-aba-sugestoes" class="w-full flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-l-2 border-transparent rounded-r-sm transition-colors">
+                        <i class="fas fa-exchange-alt flex-shrink-0 w-4 text-center"></i>
+                        <span class="nav-text whitespace-nowrap">Sugestões</span>
+                    </button>
+                    <button onclick="mudarAba('vendas')" id="btn-aba-vendas" class="w-full flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-l-2 border-transparent rounded-r-sm transition-colors">
+                        <i class="fas fa-box-open flex-shrink-0 w-4 text-center"></i>
+                        <span class="nav-text whitespace-nowrap">Pedidos Avulsos</span>
+                    </button>
+                    <button onclick="mudarAba('config')" id="btn-aba-config" class="w-full flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-l-2 border-transparent rounded-r-sm transition-colors">
+                        <i class="fas fa-cog flex-shrink-0 w-4 text-center"></i>
+                        <span class="nav-text whitespace-nowrap">Configurações</span>
+                    </button>
+                </nav>
+
+                <div class="p-3 border-t border-slate-800 bg-slate-950 overflow-hidden">
+                    <div class="flex items-center gap-3 mb-4 px-1">
+                        <div class="w-10 h-10 rounded bg-slate-800 flex items-center justify-center font-bold text-sm text-white flex-shrink-0 shadow-inner" id="perfil-iniciais">AD</div>
+                        <div class="profile-info overflow-hidden min-w-0">
+                            <p class="text-sm font-bold text-white truncate" id="perfil-nome">Administrador</p>
+                            <p class="text-[10px] text-slate-500 truncate" id="perfil-email">admin</p>
+                        </div>
+                    </div>
+                    <button onclick="sairDoSistema()" class="w-full flex items-center gap-4 px-3 py-2 rounded-md text-xs font-medium text-red-400 hover:bg-red-950/20 transition-colors group">
+                        <i class="fas fa-sign-out-alt text-lg flex-shrink-0 w-6 text-center"></i>
+                        <span class="nav-text whitespace-nowrap">Sair do Sistema</span>
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Conteúdo -->
+            <main id="main-content" class="flex-1 ml-0 md:ml-64 p-4 md:p-8 min-h-screen w-full overflow-x-hidden">
+                <div class="max-w-[1200px] mx-auto space-y-6">
+
+                    <!-- Header -->
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-200 pb-4 gap-4">
+                        <div>
+                            <h2 id="titulo-pagina" class="text-xl sm:text-2xl font-bold text-slate-900">Início</h2>
+                            <p id="subtitulo-pagina" class="text-slate-500 text-xs font-medium mt-1">Visão geral das transferências entre lojas.</p>
+                        </div>
+                        <button onclick="atualizarTudo(true)" class="w-full sm:w-auto bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 px-4 py-2 rounded-sm text-sm font-medium transition-all flex items-center justify-center">
+                            <i class="fas fa-sync-alt mr-2"></i> Atualizar
+                        </button>
+                    </div>
+
+                    <!-- ===== ABA: INÍCIO ===== -->
+                    <section id="secao-inicio" class="space-y-6">
+                        <div id="cards-resumo" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+
+                        <div class="bg-white border border-slate-200 rounded-sm p-5">
+                            <h3 class="text-base font-bold text-slate-800 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2">
+                                <i class="fas fa-calendar-week text-blue-700"></i> Agenda de sugestões da semana
+                            </h3>
+                            <div id="agenda-semana" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3"></div>
+                        </div>
+
+                        <div class="bg-white border border-slate-200 rounded-sm p-5">
+                            <h3 class="text-base font-bold text-slate-800 border-b border-slate-100 pb-3 mb-4">Atividade recente</h3>
+                            <div id="atividade-recente"></div>
+                        </div>
+                    </section>
+
+                    <!-- ===== ABA: CALENDÁRIO ===== -->
+                    <section id="secao-calendario" class="hidden space-y-6">
+
+                        <div class="bg-white border border-slate-200 rounded-sm p-5">
+                            <div class="flex items-center justify-between mb-4">
+                                <button onclick="mudarMes(-1)" class="w-9 h-9 border border-slate-300 rounded-sm text-slate-500 hover:bg-slate-50 hover:text-blue-700 transition-colors">
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <h3 id="cal-titulo" class="text-base font-bold text-slate-800"></h3>
+                                <button onclick="mudarMes(1)" class="w-9 h-9 border border-slate-300 rounded-sm text-slate-500 hover:bg-slate-50 hover:text-blue-700 transition-colors">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                            <div id="cal-grade"></div>
+                            <div class="flex flex-wrap gap-4 mt-4 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-green-500"></span> Sugestão enviada</span>
+                                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-blue-500"></span> A fazer</span>
+                                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-red-500"></span> Não enviada (passado)</span>
+                                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-slate-300"></span> Sem dia definido (ver Configurações)</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ===== ABA: SUGESTÕES ===== -->
+                    <section id="secao-sugestoes" class="hidden space-y-6">
+
+                        <!-- Lista -->
+                        <div class="bg-white border border-slate-200 rounded-sm p-5">
+                            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+                                <h3 class="text-base font-bold text-slate-800">Sugestões enviadas</h3>
+                                <div class="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+                                    <div class="relative custom-dropdown w-full sm:w-56" id="dropdown-filtro-transf">
+                                        <button type="button" onclick="toggleDropdown('filtro-transf')"
+                                                class="w-full bg-white border border-slate-300 rounded-sm py-2 px-3 text-xs font-bold text-slate-700 flex justify-between items-center hover:border-blue-400 transition-all outline-none">
+                                            <span id="texto-filtro-transf" class="truncate pr-2 text-left">Todas as filiais</span>
+                                            <svg class="seta w-3.5 h-3.5 text-slate-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </button>
+                                        <div id="lista-filtro-transf" class="hidden absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-sm shadow-lg max-h-60 overflow-y-auto custom-scrollbar">
+                                            <ul id="opcoes-filtro-transf" class="py-1 text-xs text-slate-700 font-bold"></ul>
+                                        </div>
+                                        <input type="hidden" id="input-filtro-transf" value="">
+                                    </div>
+                                    <div class="relative custom-dropdown w-full sm:w-64" id="dropdown-filtro-status">
+                                        <button type="button" onclick="toggleDropdown('filtro-status')"
+                                                class="w-full bg-white border border-slate-300 rounded-sm py-2 px-3 text-xs font-bold text-slate-700 flex justify-between items-center hover:border-blue-400 transition-all outline-none">
+                                            <span id="texto-filtro-status" class="truncate pr-2 text-left">Todas as situações</span>
+                                            <svg class="seta w-3.5 h-3.5 text-slate-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </button>
+                                        <div id="lista-filtro-status" class="hidden absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-sm shadow-lg max-h-60 overflow-y-auto custom-scrollbar">
+                                            <ul id="opcoes-filtro-status" class="py-1 text-xs text-slate-700 font-bold"></ul>
+                                        </div>
+                                        <input type="hidden" id="input-filtro-status" value="">
+                                    </div>
+                                    <button onclick="abrirModalSugestao()" class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap flex items-center justify-center flex-shrink-0">
+                                        <i class="fas fa-plus mr-1"></i> Nova sugestão
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="lista-transferencias" class="flex flex-col gap-2"></div>
+                        </div>
+                    </section>
+
+                    <!-- ===== ABA: VENDAS CASADAS ===== -->
+                    <section id="secao-vendas" class="hidden space-y-6">
+                        <div class="bg-white border border-slate-200 rounded-sm p-5">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+                                <h3 class="text-base font-bold text-slate-800">Pedidos avulsos recebidos</h3>
+                                <div class="relative custom-dropdown w-full sm:w-56" id="dropdown-filtro-vendas">
+                                    <button type="button" onclick="toggleDropdown('filtro-vendas')"
+                                            class="w-full bg-white border border-slate-300 rounded-sm py-2 px-3 text-xs font-bold text-slate-700 flex justify-between items-center hover:border-blue-400 transition-all outline-none">
+                                        <span id="texto-filtro-vendas" class="truncate pr-2 text-left">Todas as filiais</span>
+                                        <svg class="seta w-3.5 h-3.5 text-slate-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                        </svg>
+                                    </button>
+                                    <div id="lista-filtro-vendas" class="hidden absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-sm shadow-lg max-h-60 overflow-y-auto custom-scrollbar">
+                                        <ul id="opcoes-filtro-vendas" class="py-1 text-xs text-slate-700 font-bold"></ul>
+                                    </div>
+                                    <input type="hidden" id="input-filtro-vendas" value="">
+                                </div>
+                            </div>
+                            <div id="lista-vendas" class="flex flex-col gap-2"></div>
+                        </div>
+                    </section>
+
+                    <!-- ===== ABA: CONFIGURAÇÕES ===== -->
+                    <section id="secao-config" class="hidden space-y-6">
+
+                        <!-- Aprovações de cadastro -->
+                        <div class="bg-white border border-slate-200 rounded-sm p-5">
+                            <h3 class="text-base font-bold text-slate-800 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2">
+                                <i class="fas fa-user-check text-blue-700"></i> Cadastros aguardando aprovação
+                                <span id="badge-aprovacoes" class="hidden text-[10px] font-extrabold text-white bg-amber-500 px-2 py-0.5 rounded-full">0</span>
+                            </h3>
+                            <div id="lista-aprovacoes"></div>
+                        </div>
+
+                        <!-- Filiais -->
+                        <div class="bg-white border border-slate-200 rounded-sm p-5">
+                            <h3 class="text-base font-bold text-slate-800 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2">
+                                <i class="fas fa-store text-blue-700"></i> Adicionar filial
+                            </h3>
+                            <form id="form-filial" class="space-y-4">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Código da filial</label>
+                                        <input type="text" id="filial-id" required placeholder="Ex.: 1015"
+                                               class="w-full px-3 py-2.5 rounded border text-sm outline-none transition-all bg-slate-50 border-slate-200 focus:ring-2 focus:ring-blue-700/20 focus:border-blue-700">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Nome da filial</label>
+                                        <input type="text" id="filial-nome" required placeholder="Ex.: Loja 1015"
+                                               class="w-full px-3 py-2.5 rounded border text-sm outline-none transition-all bg-slate-50 border-slate-200 focus:ring-2 focus:ring-blue-700/20 focus:border-blue-700">
+                                    </div>
+                                </div>
+                                <p id="msg-nova-filial" class="text-xs text-red-600 font-medium hidden"></p>
+                                <button type="submit" class="bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2.5 px-6 rounded transition-all text-xs uppercase tracking-widest">
+                                    <i class="fas fa-plus mr-2"></i> Adicionar
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Agenda por filial -->
+                        <div class="bg-white border border-slate-200 rounded-sm p-5">
+                            <h3 class="text-base font-bold text-slate-800 border-b border-slate-100 pb-3 mb-2 flex items-center gap-2">
+                                <i class="fas fa-calendar-check text-blue-700"></i> Agenda de sugestões por filial
+                            </h3>
+                            <p class="text-xs text-slate-400 mb-4">Defina se cada filial recebe sugestões <strong>semanalmente</strong> ou <strong>quinzenalmente</strong>, e em qual dia da semana.</p>
+                            <div id="lista-filiais"></div>
+                        </div>
+
+                        <!-- Usuários aprovados -->
+                        <div class="bg-white border border-slate-200 rounded-sm p-5">
+                            <h3 class="text-base font-bold text-slate-800 border-b border-slate-100 pb-3 mb-2 flex items-center gap-2">
+                                <i class="fas fa-users text-blue-700"></i> Usuários cadastrados
+                            </h3>
+                            <div id="lista-usuarios"></div>
+                        </div>
+                    </section>
+
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL: NOVA SUGESTÃO ==================== -->
+    <div id="modal-sugestao" class="fixed inset-0 bg-slate-900 bg-opacity-50 z-50 hidden flex justify-center items-center backdrop-blur-sm px-4">
+        <div class="bg-white rounded-sm shadow-xl w-full max-w-lg p-6 relative max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <button onclick="fecharModalSugestao()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors text-2xl font-medium leading-none outline-none">&times;</button>
+            <h2 class="text-lg font-bold text-slate-800 mb-1">Nova sugestão de transferência</h2>
+            <p class="text-xs text-slate-500 mb-4">Envie a planilha de sugestão para a filial escolhida.</p>
+
+            <form id="form-sugestao" class="space-y-4">
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Filial (loja destino)</label>
+                    <div class="relative w-full custom-dropdown" id="dropdown-sugestao-filial">
+                        <button type="button" onclick="toggleDropdown('sugestao-filial')"
+                                class="w-full bg-white border border-slate-300 rounded-sm py-2.5 px-3 text-sm font-medium text-slate-700 flex justify-between items-center hover:border-blue-400 transition-all outline-none">
+                            <span id="texto-sugestao-filial" class="truncate pr-2 text-left">— Selecione a filial —</span>
+                            <svg class="seta w-4 h-4 text-slate-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div id="lista-sugestao-filial" class="hidden absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-sm shadow-lg max-h-60 overflow-y-auto custom-scrollbar">
+                            <ul id="opcoes-sugestao-filial" class="py-1 text-sm text-slate-700 font-bold"></ul>
+                        </div>
+                        <input type="hidden" id="input-sugestao-filial" value="">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Planilha de sugestão (.xlsx, .csv, .ods)</label>
+                    <input type="file" id="sugestao-arquivo" accept=".xlsx,.xls,.csv,.ods" required
+                           class="w-full px-3 py-2 rounded border text-sm bg-slate-50 border-slate-200 text-slate-600 file:mr-3 file:py-1 file:px-3 file:rounded-sm file:border-0 file:text-xs file:font-semibold file:bg-blue-700 file:text-white file:cursor-pointer">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Observações (opcional)</label>
+                    <textarea id="sugestao-obs" rows="2" placeholder="Ex.: priorizar itens de validade próxima"
+                              class="w-full px-3 py-2.5 rounded border text-sm outline-none transition-all bg-slate-50 border-slate-200 focus:ring-2 focus:ring-blue-700/20 focus:border-blue-700"></textarea>
+                </div>
+                <button type="submit" id="btn-enviar-sugestao" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold py-3 rounded transition-all text-xs uppercase tracking-widest">
+                    <i class="fas fa-paper-plane mr-2"></i> Enviar sugestão
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL: DETALHES (sugestão / venda / dia do calendário) ==================== -->
+    <div id="modal-detalhe" class="fixed inset-0 bg-slate-900 bg-opacity-50 z-50 hidden flex justify-center items-center backdrop-blur-sm px-4">
+        <div class="bg-white rounded-sm shadow-xl w-full max-w-lg p-6 relative max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <button onclick="fecharModalDetalhe()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors text-2xl font-medium leading-none outline-none">&times;</button>
+            <div id="modal-detalhe-conteudo"></div>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL: Nº DO PEDIDO (múltiplos) ==================== -->
+    <div id="modal-pedido" class="fixed inset-0 bg-slate-900 bg-opacity-50 z-50 hidden flex justify-center items-center backdrop-blur-sm px-4">
+        <div class="bg-white rounded-sm shadow-xl w-full max-w-lg p-6 relative max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <button onclick="fecharModalPedido()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors text-2xl font-medium leading-none outline-none">&times;</button>
+            <h2 class="text-lg font-bold text-slate-800 mb-1">Registrar número(s) do pedido</h2>
+            <p id="modal-pedido-info" class="text-xs text-slate-500 mb-4"></p>
+
+            <div id="pedidos-linhas" class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-1"></div>
+
+            <button onclick="adicionarLinhaPedido()" class="mt-3 w-full border border-dashed border-slate-300 hover:border-blue-400 hover:text-blue-700 text-slate-500 text-xs font-bold py-2 rounded-sm transition-colors">
+                <i class="fas fa-plus mr-1"></i> Adicionar outro pedido
+            </button>
+
+            <p id="msg-modal-pedido" class="text-xs text-red-600 font-medium mt-2 hidden"></p>
+            <button onclick="confirmarPedido()" id="btn-confirmar-pedido" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-3 rounded-sm uppercase text-sm mt-4 transition-colors">
+                Registrar pedido(s)
+            </button>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL: NEGAR VENDA CASADA ==================== -->
+    <div id="modal-negar" class="fixed inset-0 bg-slate-900 bg-opacity-50 z-50 hidden flex justify-center items-center backdrop-blur-sm px-4">
+        <div class="bg-white rounded-sm shadow-xl w-full max-w-md p-6 relative">
+            <button onclick="fecharModalNegar()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors text-2xl font-medium leading-none outline-none">&times;</button>
+            <h2 class="text-lg font-bold text-slate-800 mb-1">Negar pedido avulso</h2>
+            <p id="modal-negar-info" class="text-xs text-slate-500 mb-4"></p>
+            <label class="block text-xs font-medium text-slate-700 mb-1">Motivo da negativa <span class="text-red-500">*</span></label>
+            <textarea id="input-motivo-negacao" rows="3" placeholder="Ex.: sem saldo no CD para o item casado"
+                      class="w-full border border-slate-300 rounded-sm p-2.5 text-sm outline-none focus:border-blue-500"></textarea>
+            <p id="msg-modal-negar" class="text-xs text-red-600 font-medium mt-2 hidden"></p>
+            <button onclick="confirmarNegacao()" class="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-3 rounded-sm uppercase text-sm mt-4 transition-colors">
+                Confirmar negativa
+            </button>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL: EXIGIR AUTORIZAÇÕES ==================== -->
+    <div id="modal-autorizacoes" class="fixed inset-0 bg-slate-900 bg-opacity-50 z-50 hidden flex justify-center items-center backdrop-blur-sm px-4">
+        <div class="bg-white rounded-sm shadow-xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <button onclick="fecharModalAutorizacoes()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors text-2xl font-medium leading-none outline-none">&times;</button>
+            <h2 class="text-lg font-bold text-slate-800 mb-1">Exigir autorizações</h2>
+            <p class="text-xs text-slate-500 mb-4">Selecione <strong>uma ou mais pessoas</strong> que precisam dar o OK antes de você aprovar. A venda só poderá ser aprovada quando <strong>todos</strong> aprovarem.</p>
+            <div id="lista-opcoes-autorizacao" class="space-y-1 max-h-64 overflow-y-auto custom-scrollbar"></div>
+            <p id="msg-modal-autorizacoes" class="text-xs text-red-600 font-medium mt-2 hidden"></p>
+            <button onclick="confirmarAutorizacoes()" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-3 rounded-sm uppercase text-sm mt-4 transition-colors">
+                Exigir autorização selecionada(s)
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-sm text-sm font-medium z-[99] shadow-xl hidden"></div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
