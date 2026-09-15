@@ -284,6 +284,28 @@ async function carregarFiliais() {
   if (!error) filiais = data || [];
 }
 
+/* ⬇ Filiais ATIVAS/INATIVAS — controle visual do admin (localStorage do painel).
+   Inativas são ignoradas no calendário, na agenda e nos dropdowns. */
+const LS_ATIVAS = "trf_filiais_inativas";
+function filiaisInativas() {
+  try { return JSON.parse(localStorage.getItem(LS_ATIVAS)) || []; } catch { return []; }
+}
+function filiaisAtivas() {
+  const inativas = filiaisInativas();
+  return filiais.filter(f => !inativas.includes(f.id));
+}
+function toggleFilialAtiva(id, ativa) {
+  let inativas = filiaisInativas();
+  if (ativa) inativas = inativas.filter(x => x !== id);
+  else if (!inativas.includes(id)) inativas.push(id);
+  localStorage.setItem(LS_ATIVAS, JSON.stringify(inativas));
+  renderizarDropdownFilial();
+  renderizarFiltros();
+  renderizarInicio();
+  renderizarFiliaisConfig();
+  mostrarToast(ativa ? "Filial ativada." : "Filial inativada — ficará oculta no calendário e na agenda.");
+}
+
 async function carregarTransferencias() {
   const { data, error } = await supabase
     .from("sugestoes")
@@ -454,6 +476,7 @@ async function renderizarCalendario() {
   if (! $("cal-grade")) return;
   await carregarTransferencias();
 
+  const ativas = filiaisAtivas();
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
   $("cal-titulo").innerText = `${NOMES_MESES[calMes]} de ${calAno}`;
 
@@ -471,7 +494,7 @@ async function renderizarCalendario() {
   for (let dia = 1; dia <= diasNoMes; dia++) {
     const date = new Date(calAno, calMes, dia);
     const ehHoje = date.getTime() === hoje.getTime();
-    const chips = filiais
+    const chips = ativas
       .filter(f => dataDevidaFilial(f, date))
       .map(f => {
         const s = sugestaoDoCiclo(f, date);
@@ -588,7 +611,7 @@ function renderizarAgenda() {
   let html = "";
 
   DIAS_SEMANA.forEach(dia => {
-    const filiaisDoDia = filiais.filter(f => f.dia_semana === dia.n);
+    const filiaisDoDia = filiaisAtivas().filter(f => f.dia_semana === dia.n);
     const ehHoje = dia.n === hoje;
 
     const itens = filiaisDoDia.map(f => {
@@ -685,7 +708,7 @@ function renderizarAtividade(transf, vendas) {
 function renderizarDropdownFilial() {
   preencherDropdown(
     "sugestao-filial",
-    filiais.map(f => ({ valor: f.id, texto: f.nome })),   // ⬅ vindo do Supabase
+    filiaisAtivas().map(f => ({ valor: f.id, texto: f.nome })),   // ⬅ só ativas
     $("input-sugestao-filial").value,
     "— Selecione a filial —"
   );
@@ -748,7 +771,7 @@ let filtroStatusTransf = "";
 
 function renderizarFiltros() {
   const ops = [{ valor: "", texto: "Todas as filiais" },
-    ...filiais.map(f => ({ valor: f.id, texto: f.nome }))];
+    ...filiaisAtivas().map(f => ({ valor: f.id, texto: f.nome }))];
   preencherDropdown("filtro-transf", ops, filtroTransf);
   preencherDropdown("filtro-vendas", ops, filtroVenda);
   preencherDropdown("filtro-status", [
@@ -1421,6 +1444,11 @@ function renderizarFiliaisConfig() {
         <div class="lg:w-64 min-w-0">
           <p class="text-sm font-bold text-slate-800 truncate">${escapeHtml(f.id)}</p>
           <p class="text-[11px] text-slate-500 truncate">${escapeHtml(f.nome)}</p>
+          <label class="inline-flex items-center gap-2 mt-1.5 cursor-pointer select-none" title="Filial inativa fica oculta no calendário e na agenda">
+            <input type="checkbox" class="peer sr-only" ${filiaisInativas().includes(f.id) ? "" : "checked"} onchange="toggleFilialAtiva('${escapeHtml(f.id)}', this.checked)">
+            <span class="w-8 h-4 rounded-full bg-slate-300 peer-checked:bg-green-500 relative transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition-transform peer-checked:after:translate-x-4"></span>
+            <span class="text-[10px] font-bold uppercase text-slate-400 peer-checked:text-green-600">Ativa</span>
+          </label>
         </div>
         <div class="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
@@ -1603,5 +1631,6 @@ Object.assign(window, {
   mudarMes,
   fecharModalDetalhe, abrirModalDetalheTransf, abrirModalDetalheVenda, abrirModalDia,
   abrirModalSugestao, fecharModalSugestao,
-  abrirModalEditarFilial, fecharModalEditarFilial, confirmarEdicaoFilial
+  abrirModalEditarFilial, fecharModalEditarFilial, confirmarEdicaoFilial,
+  toggleFilialAtiva
 });
