@@ -407,10 +407,23 @@ function mudarMes(delta) {
   renderizarCalendario();
 }
 
-/* A data é "dia de sugestão" da filial? (quinzenal = semanas alternadas, âncora estável) */
+/* A data é "dia de sugestão" da filial?
+   Se a filial tem ciclo_inicio, conta a partir dele (ex.: quinzenal a partir de 22/09
+   → 22/09, 06/10, 20/10...). Senão, cai no cálculo antigo de semanas alternadas. */
 function dataDevidaFilial(f, date) {
   if (f.dia_semana === null || f.dia_semana === undefined) return false;
   if (date.getDay() !== f.dia_semana) return false;
+
+  if (f.ciclo_inicio) {
+    const DIA = 86400000;
+    const inicio = new Date(f.ciclo_inicio + "T00:00:00"); // evita deslocamento de fuso
+    const d = new Date(date); d.setHours(0, 0, 0, 0);
+    const diff = Math.round((d.getTime() - inicio.getTime()) / DIA);
+    if (diff < 0) return false;
+    const ciclo = f.periodicidade === "quinzenal" ? 14 : 7;
+    return diff % ciclo === 0;
+  }
+
   if (f.periodicidade === "quinzenal") {
     const DIA = 86400000;
     const d = new Date(date); d.setHours(0, 0, 0, 0);
@@ -1404,13 +1417,15 @@ function renderizarFiliaisConfig() {
 
   container.innerHTML = filiais.map(f => `
     <div class="py-4 border-b border-slate-100 last:border-0">
-      <div class="flex flex-col lg:flex-row lg:items-center gap-3">
+      <div class="flex flex-col lg:flex-row lg:items-end gap-3">
         <div class="lg:w-64 min-w-0">
-          <p class="text-sm font-bold text-slate-800 truncate">${escapeHtml(f.nome)}</p>
-          <p class="text-[11px] text-slate-400">código: ${escapeHtml(f.id)}</p>
+          <p class="text-sm font-bold text-slate-800 truncate">${escapeHtml(f.id)}</p>
+          <p class="text-[11px] text-slate-500 truncate">${escapeHtml(f.nome)}</p>
         </div>
-        <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div class="relative custom-dropdown" id="dropdown-periodicidade-${escapeHtml(f.id)}">
+        <div class="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">Periodicidade</label>
+            <div class="relative custom-dropdown" id="dropdown-periodicidade-${escapeHtml(f.id)}">
             <button type="button" onclick="toggleDropdown('periodicidade-${escapeHtml(f.id)}')"
                     class="w-full bg-white border border-slate-300 rounded-sm py-2 px-3 text-xs font-bold text-slate-700 flex justify-between items-center hover:border-blue-400 transition-all outline-none">
               <span id="texto-periodicidade-${escapeHtml(f.id)}" class="truncate pr-2 text-left"></span>
@@ -1422,8 +1437,11 @@ function renderizarFiliaisConfig() {
               <ul id="opcoes-periodicidade-${escapeHtml(f.id)}" class="py-1 text-xs text-slate-700 font-bold"></ul>
             </div>
             <input type="hidden" id="input-periodicidade-${escapeHtml(f.id)}" value="">
+            </div>
           </div>
-          <div class="relative custom-dropdown" id="dropdown-diadasemana-${escapeHtml(f.id)}">
+          <div>
+            <label class="block text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">Dia da semana</label>
+            <div class="relative custom-dropdown" id="dropdown-diadasemana-${escapeHtml(f.id)}">
             <button type="button" onclick="toggleDropdown('diadasemana-${escapeHtml(f.id)}')"
                     class="w-full bg-white border border-slate-300 rounded-sm py-2 px-3 text-xs font-bold text-slate-700 flex justify-between items-center hover:border-blue-400 transition-all outline-none">
               <span id="texto-diadasemana-${escapeHtml(f.id)}" class="truncate pr-2 text-left"></span>
@@ -1435,12 +1453,26 @@ function renderizarFiliaisConfig() {
               <ul id="opcoes-diadasemana-${escapeHtml(f.id)}" class="py-1 text-xs text-slate-700 font-bold"></ul>
             </div>
             <input type="hidden" id="input-diadasemana-${escapeHtml(f.id)}" value="">
+            </div>
+          </div>
+
+          <!-- Início do ciclo (a partir de quando o calendário conta) -->
+          <div>
+            <label class="block text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">Início do ciclo</label>
+            <input type="date" id="ciclo-inicio-${escapeHtml(f.id)}" value="${f.ciclo_inicio || ""}"
+                   class="w-full bg-white border border-slate-300 rounded-sm py-2 px-3 text-xs font-bold text-slate-700 outline-none hover:border-blue-400 focus:border-blue-500 transition-all">
           </div>
         </div>
-        <button onclick="excluirFilial('${escapeHtml(f.id)}')"
-                class="border border-slate-200 text-red-600 hover:bg-red-50 px-3 py-2 rounded-sm text-xs font-bold transition-colors whitespace-nowrap self-start lg:self-center">
-          <i class="fas fa-trash mr-1"></i> Excluir
-        </button>
+        <div class="flex gap-2">
+          <button onclick="abrirModalEditarFilial('${escapeHtml(f.id)}')"
+                  class="border border-slate-300 text-slate-600 hover:bg-slate-100 px-3 py-2 rounded-sm text-xs font-bold transition-colors whitespace-nowrap">
+            <i class="fas fa-pen mr-1"></i> Editar
+          </button>
+          <button onclick="excluirFilial('${escapeHtml(f.id)}')"
+                  class="border border-slate-200 text-red-600 hover:bg-red-50 px-3 py-2 rounded-sm text-xs font-bold transition-colors whitespace-nowrap">
+            <i class="fas fa-trash mr-1"></i> Excluir
+          </button>
+        </div>
       </div>
     </div>`).join("");
 
@@ -1470,6 +1502,9 @@ document.addEventListener("change", async e => {
   } else if (alvo.id.startsWith("input-diadasemana-")) {
     filialId = alvo.id.replace("input-diadasemana-", "");
     campo = "dia_semana";
+  } else if (alvo.id.startsWith("ciclo-inicio-")) {
+    filialId = alvo.id.replace("ciclo-inicio-", "");
+    campo = "ciclo_inicio";
   } else if (alvo.id.startsWith("input-aprovar-")) {
     // ⬅ Aprovação: o valor do dropdown é a role escolhida
     const userId = alvo.id.replace("input-aprovar-", "");
@@ -1492,7 +1527,11 @@ document.addEventListener("change", async e => {
 
   const valor = campo === "dia_semana"
     ? (alvo.value === "" ? null : parseInt(alvo.value))
-    : alvo.value;
+    : campo === "ciclo_inicio"
+      ? (alvo.value || null)
+      : campo === "nome"
+        ? alvo.value.trim()
+        : alvo.value;
 
   const { error } = await supabase.from("filiais").update({ [campo]: valor }).eq("id", filialId);
   if (error) { mostrarToast("Erro ao salvar: " + error.message); return; }
@@ -1500,6 +1539,45 @@ document.addEventListener("change", async e => {
   renderizarInicio();
   mostrarToast("Agenda atualizada.");
 });
+
+/* ⬇ Modal Editar Filial */
+let filialEditando = null;
+
+function abrirModalEditarFilial(id) {
+  const f = filiais.find(x => x.id === id);
+  if (!f) return;
+  filialEditando = id;
+  $("modal-editar-filial-info").innerText = `Código: ${f.id}`;
+  $("edit-filial-nome").value = f.nome;
+  $("msg-editar-filial").classList.add("hidden");
+  $("modal-editar-filial").classList.remove("hidden");
+  $("edit-filial-nome").focus();
+}
+
+function fecharModalEditarFilial() {
+  $("modal-editar-filial").classList.add("hidden");
+  filialEditando = null;
+}
+
+async function confirmarEdicaoFilial() {
+  const nome = $("edit-filial-nome").value.trim();
+  if (!nome) {
+    $("msg-editar-filial").innerText = "O nome da filial não pode ficar vazio.";
+    $("msg-editar-filial").classList.remove("hidden");
+    return;
+  }
+  const { error } = await supabase.from("filiais")
+    .update({ nome })
+    .eq("id", filialEditando);
+  if (error) { mostrarToast("Erro: " + error.message); return; }
+  fecharModalEditarFilial();
+  await carregarFiliais();
+  renderizarDropdownFilial();
+  renderizarFiltros();
+  renderizarInicio();
+  renderizarFiliaisConfig();
+  mostrarToast("Filial renomeada com sucesso.");
+}
 
 async function excluirFilial(id) {
   const f = filiais.find(x => x.id === id);
@@ -1524,5 +1602,6 @@ Object.assign(window, {
   abrirModalAutorizacoes, fecharModalAutorizacoes, confirmarAutorizacoes,
   mudarMes,
   fecharModalDetalhe, abrirModalDetalheTransf, abrirModalDetalheVenda, abrirModalDia,
-  abrirModalSugestao, fecharModalSugestao
+  abrirModalSugestao, fecharModalSugestao,
+  abrirModalEditarFilial, fecharModalEditarFilial, confirmarEdicaoFilial
 });
