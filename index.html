@@ -39,8 +39,8 @@
     <div id="tela-login" class="w-full h-screen flex fixed inset-0 z-50 bg-white">
 
         <!-- Painel esquerdo -->
-        <div class="relative flex-1 overflow-hidden hidden md:block" style="background: linear-gradient(150deg, #0a1628 0%, #1a3254 55%, #0f172a 100%);">
-            <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle at 20% 30%, #1d4ed8 0%, transparent 40%), radial-gradient(circle at 80% 70%, #3b82f6 0%, transparent 35%);"></div>
+        <div class="relative flex-1 overflow-hidden hidden md:block" style="background: url('./ilustracao-logistica.png') center/cover no-repeat;">
+            <div class="absolute inset-0" style="background: linear-gradient(to bottom, rgba(10,22,40,.75) 0%, rgba(10,22,40,.25) 55%, rgba(10,22,40,.55) 100%);"></div>
             <div class="relative z-10 h-full flex flex-col justify-between p-10">
                 <div>
                     <div style="width: 3px; height: 40px; background: #3b82f6; border-radius: 2px; margin-bottom: 1.5rem;"></div>
@@ -567,16 +567,36 @@
             <button onclick="fecharModalNegarDefinitivo()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors text-2xl font-medium leading-none outline-none">&times;</button>
             <h2 class="text-lg font-bold text-slate-800 mb-1">Negar pedido definitivamente</h2>
             <p id="modal-negar-definitivo-info" class="text-xs text-slate-500 mb-4"></p>
-            <p class="text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-sm px-3 py-2 mb-3">
-                <i class="fas fa-exclamation-triangle mr-1"></i> <strong>Atenção:</strong> a loja <strong>NÃO poderá</strong> responder ou ajustar este pedido. Essa ação não pode ser desfeita.
-            </p>
-            <label class="block text-xs font-medium text-slate-700 mb-1">Motivo da negativa definitiva <span class="text-red-500">*</span></label>
-            <textarea id="input-motivo-negacao-def" rows="3" placeholder="Ex.: política comercial não permite essa transferência"
-                      class="w-full border border-slate-300 rounded-sm p-2.5 text-sm outline-none focus:border-blue-500"></textarea>
-            <p id="msg-modal-negar-def" class="text-xs text-red-600 font-medium mt-2 hidden"></p>
-            <button onclick="confirmarNegacaoDefinitiva()" class="w-full bg-red-700 hover:bg-red-800 text-white font-medium py-3 rounded-sm uppercase text-sm mt-4 transition-colors">
-                Negar definitivamente
-            </button>
+
+            <!-- ETAPA 1: digitar motivo -->
+            <div id="etapa-motivo-def">
+                <label class="block text-xs font-medium text-slate-700 mb-1">Motivo da negativa definitiva <span class="text-red-500">*</span></label>
+                <textarea id="input-motivo-negacao-def" rows="3" placeholder="Ex.: política comercial não permite essa transferência"
+                          class="w-full border border-slate-300 rounded-sm p-2.5 text-sm outline-none focus:border-blue-500"></textarea>
+                <p id="msg-modal-negar-def" class="text-xs text-red-600 font-medium mt-2 hidden"></p>
+                <button onclick="mostrarConfirmacaoNegarDef()" class="w-full bg-red-700 hover:bg-red-800 text-white font-medium py-3 rounded-sm uppercase text-sm mt-4 transition-colors">
+                    Negar definitivamente
+                </button>
+            </div>
+
+            <!-- ETAPA 2: aviso de confirmação na tela (SEM alert) -->
+            <div id="etapa-confirmar-def" class="hidden">
+                <div class="text-center py-2">
+                    <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-exclamation-triangle text-xl"></i>
+                    </div>
+                    <p class="text-sm font-bold text-slate-800 mb-1">Confirmar negativa definitiva?</p>
+                    <p class="text-xs text-slate-500 leading-relaxed">A loja <strong>NÃO poderá</strong> responder ou ajustar este pedido.<br>Essa ação <strong>não pode ser desfeita</strong>.</p>
+                </div>
+                <div class="flex gap-2 mt-4">
+                    <button onclick="voltarMotivoNegarDef()" class="flex-1 border border-slate-300 text-slate-600 hover:bg-slate-100 font-medium py-3 rounded-sm uppercase text-sm transition-colors">
+                        Voltar
+                    </button>
+                    <button onclick="confirmarNegacaoDefinitiva()" class="flex-1 bg-red-700 hover:bg-red-800 text-white font-medium py-3 rounded-sm uppercase text-sm transition-colors">
+                        Sim, negar definitivamente
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 

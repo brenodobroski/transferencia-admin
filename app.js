@@ -931,64 +931,59 @@ function abrirModalDetalheVenda(id) {
          </button>`;
   }
 
-  // ⬅ RESPOSTAS DO ADMIN: histórico completo (negativas NUNCA somem) ou legado
+  // ⬅ TIMELINE CRONOLÓGICA: respostas do admin + ajustes do lojista em ORDEM DE DATA
   const historico = Array.isArray(v.historico_respostas) ? v.historico_respostas : [];
-  let blocoResposta;
-  if (historico.length) {
-    blocoResposta = historico.map(h => {
-      if (h.tipo === "aprovado") {
-        return `
-          <div>
-            <span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide block mb-1">Resposta do admin — APROVADO</span>
-            <div class="border border-green-200 bg-green-50 rounded-sm px-3 py-2 flex flex-col gap-1">
-              ${(h.pedidos || []).length ? blocoPedidos(h.pedidos) : `<p class="text-[11px] text-green-700 italic">Sem pedidos registrados.</p>`}
-              <p class="text-[11px] text-green-700"><strong>Concluído em:</strong> ${dataHoraBr(h.data)} &nbsp;·&nbsp; <strong>por:</strong> ${escapeHtml(h.por || "Admin")}</p>
-            </div>
-          </div>`;
-      }
-      const def = h.tipo === "negado_permanente";
+  const ajustesLista = Array.isArray(v.ajustes) ? v.ajustes : [];
+
+  const blocoResp = h => {
+    if (h.tipo === "aprovado") {
       return `
         <div>
-          <span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide block mb-1">Resposta do admin — ${def ? "NEGADO DEFINITIVAMENTE" : "NEGADO"}</span>
-          <div class="border border-red-200 bg-red-50 rounded-sm px-3 py-2 flex flex-col gap-1">
-            ${h.motivo ? `<p class="text-[11px] text-red-600"><i class="fas fa-ban text-red-300 mr-1"></i><strong>${escapeHtml(h.motivo)}</strong></p>` : ""}
-            <p class="text-[11px] text-red-600"><strong>${def ? "Negado definitivamente em:" : "Negado em:"}</strong> ${dataHoraBr(h.data)} &nbsp;·&nbsp; <strong>por:</strong> ${escapeHtml(h.por || "Admin")}</p>
+          <span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide block mb-1">Resposta do admin — APROVADO</span>
+          <div class="border border-green-200 bg-green-50 rounded-sm px-3 py-2 flex flex-col gap-1">
+            ${(h.pedidos || []).length ? blocoPedidos(h.pedidos) : `<p class="text-[11px] text-green-700 italic">Sem pedidos registrados.</p>`}
+            <p class="text-[11px] text-green-700"><strong>Concluído em:</strong> ${dataHoraBr(h.data)} &nbsp;·&nbsp; <strong>por:</strong> ${escapeHtml(h.por || "Admin")}</p>
           </div>
         </div>`;
-    }).join("");
-  } else if (v.status === "aprovado") {
-    blocoResposta = `
-      <div>
-        <span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide block mb-1">Resposta do admin — APROVADO</span>
-        <div class="border border-green-200 bg-green-50 rounded-sm px-3 py-2 flex flex-col gap-1">
-          ${pedidos.length ? blocoPedidos(pedidos) : `<p class="text-[11px] text-green-700 italic">Sem pedidos registrados.</p>`}
-          <p class="text-[11px] text-green-700"><strong>Concluído em:</strong> ${dataHoraBr(v.data_resposta)} &nbsp;·&nbsp; <strong>por:</strong> ${escapeHtml(v.respondido_por || "Admin")}</p>
-        </div>
-      </div>`;
-  } else if (v.status === "negado" || v.status === "negado_permanente") {
-    const def = v.status === "negado_permanente";
-    blocoResposta = `
+    }
+    const def = h.tipo === "negado_permanente";
+    return `
       <div>
         <span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide block mb-1">Resposta do admin — ${def ? "NEGADO DEFINITIVAMENTE" : "NEGADO"}</span>
         <div class="border border-red-200 bg-red-50 rounded-sm px-3 py-2 flex flex-col gap-1">
-          ${v.motivo_negacao ? `<p class="text-[11px] text-red-600"><i class="fas fa-ban text-red-300 mr-1"></i><strong>${escapeHtml(v.motivo_negacao)}</strong></p>` : ""}
-          <p class="text-[11px] text-red-600"><strong>${def ? "Negado definitivamente em:" : "Negado em:"}</strong> ${dataHoraBr(v.data_resposta)} &nbsp;·&nbsp; <strong>por:</strong> ${escapeHtml(v.respondido_por || "Admin")}</p>
+          ${h.motivo ? `<p class="text-[11px] text-red-600"><i class="fas fa-ban text-red-300 mr-1"></i><strong>${escapeHtml(h.motivo)}</strong></p>` : ""}
+          <p class="text-[11px] text-red-600"><strong>${def ? "Negado definitivamente em:" : "Negado em:"}</strong> ${dataHoraBr(h.data)} &nbsp;·&nbsp; <strong>por:</strong> ${escapeHtml(h.por || "Admin")}</p>
         </div>
       </div>`;
-  } else {
-    blocoResposta = "";
-  }
+  };
 
-  const ajustesHtml = (Array.isArray(v.ajustes) && v.ajustes.length) ? `
+  const blocoAjust = a => `
     <div>
-      <span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide block mb-1">Ajustes do lojista</span>
-      ${v.ajustes.map(a => `
-        <div class="border border-slate-200 bg-white rounded-sm px-2.5 py-2 mb-1">
-          <p class="text-[11px] text-slate-400">${escapeHtml(a.por)} · ${dataHoraBr(a.data)}</p>
-          ${a.obs ? `<p class="text-[11px] text-slate-600"><i class="fas fa-comment-dots text-sky-400 mr-1"></i>${escapeHtml(a.obs)}</p>` : ""}
-          ${(a.evidencias || []).map(ev => `<p class="text-[11px] text-slate-500"><i class="fas fa-paperclip text-slate-300 mr-1"></i><a href="#" onclick="event.preventDefault(); baixarEvidenciaAdmin('${v.id}', ${JSON.stringify(a.data)}, ${(a.evidencias || []).indexOf(ev)})" class="text-blue-700 font-bold">${escapeHtml(ev.nome)}</a></p>`).join("")}
-        </div>`).join("")}
-    </div>` : "";
+      <span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide block mb-1">Ajuste do lojista</span>
+      <div class="border border-slate-200 bg-white rounded-sm px-3 py-2 flex flex-col gap-1">
+        <p class="text-[11px] text-slate-400">${escapeHtml(a.por)} · ${dataHoraBr(a.data)}</p>
+        ${a.obs ? `<p class="text-[11px] text-slate-600"><i class="fas fa-comment-dots text-sky-400 mr-1"></i>${escapeHtml(a.obs)}</p>` : ""}
+        ${(a.evidencias || []).map((ev, i) => `<p class="text-[11px] text-slate-500"><i class="fas fa-paperclip text-slate-300 mr-1"></i><a href="#" onclick="event.preventDefault(); baixarEvidenciaAdmin('${v.id}', ${JSON.stringify(a.data)}, ${i})" class="text-blue-700 font-bold">${escapeHtml(ev.nome)}</a></p>`).join("")}
+      </div>
+    </div>`;
+
+  // Junta respostas + ajustes e ordena por data (mais antigo primeiro)
+  const eventos = [
+    ...historico.map(h => ({ data: new Date(h.data), html: blocoResp(h) })),
+    ...ajustesLista.map(a => ({ data: new Date(a.data), html: blocoAjust(a) }))
+  ].sort((x, y) => x.data - y.data);
+
+  // Registro antigo sem histórico: monta a resposta atual pelo status
+  let timelineHtml;
+  if (eventos.length) {
+    timelineHtml = eventos.map(e => e.html).join("");
+  } else if (v.status === "aprovado") {
+    timelineHtml = blocoResp({ tipo: "aprovado", pedidos, data: v.data_resposta, por: v.respondido_por });
+  } else if (v.status === "negado" || v.status === "negado_permanente") {
+    timelineHtml = blocoResp({ tipo: v.status, motivo: v.motivo_negacao, data: v.data_resposta, por: v.respondido_por });
+  } else {
+    timelineHtml = "";
+  }
 
   $("modal-detalhe-conteudo").innerHTML = `
     <h2 class="text-lg font-bold text-slate-800 mb-1">Pedido avulso</h2>
@@ -998,8 +993,7 @@ function abrirModalDetalheVenda(id) {
     </div>
     <div class="flex flex-col gap-3">
       ${blocoPedido}
-      ${ajustesHtml}
-      ${blocoResposta}
+      ${timelineHtml}
     </div>
     ${acoes ? `<div class="flex justify-end items-center gap-2 pt-4 flex-wrap">${acoes}</div>` : ""}`;
   $("modal-detalhe").classList.remove("hidden");
@@ -1291,8 +1285,29 @@ function abrirModalNegarDefinitivo(id) {
     `${escapeHtml(v.usuario_nome || nomeLoja(v.loja_id))} · pedido avulso (${nomeLoja(v.filial_saida)} → ${nomeLoja(v.filial_destino)}).`;
   $("input-motivo-negacao-def").value = "";
   $("msg-modal-negar-def").classList.add("hidden");
+  // ⬅ Reseta pra etapa 1 (digitar motivo), escondendo o aviso de confirmação
+  $("etapa-motivo-def").classList.remove("hidden");
+  $("etapa-confirmar-def").classList.add("hidden");
   $("modal-negar-definitivo").classList.remove("hidden");
   $("input-motivo-negacao-def").focus();
+}
+
+// ⬅ Etapa 2: mostra o aviso de confirmação na tela (SEM alert)
+function mostrarConfirmacaoNegarDef() {
+  const motivo = $("input-motivo-negacao-def").value.trim();
+  if (!motivo) {
+    $("msg-modal-negar-def").innerText = "Escreva o motivo da negativa definitiva.";
+    $("msg-modal-negar-def").classList.remove("hidden");
+    return;
+  }
+  $("msg-modal-negar-def").classList.add("hidden");
+  $("etapa-motivo-def").classList.add("hidden");
+  $("etapa-confirmar-def").classList.remove("hidden");
+}
+
+function voltarMotivoNegarDef() {
+  $("etapa-confirmar-def").classList.add("hidden");
+  $("etapa-motivo-def").classList.remove("hidden");
 }
 
 function fecharModalNegarDefinitivo() {
@@ -1303,6 +1318,7 @@ function fecharModalNegarDefinitivo() {
 async function confirmarNegacaoDefinitiva() {
   const motivo = $("input-motivo-negacao-def").value.trim();
   if (!motivo) {
+    voltarMotivoNegarDef();
     $("msg-modal-negar-def").innerText = "Escreva o motivo da negativa definitiva.";
     $("msg-modal-negar-def").classList.remove("hidden");
     return;
@@ -1856,6 +1872,7 @@ Object.assign(window, {
   aprovarUsuario, reprovarUsuario, excluirFilial,
   abrirModalNegar, fecharModalNegar, confirmarNegacao,
   abrirModalNegarDefinitivo, fecharModalNegarDefinitivo, confirmarNegacaoDefinitiva,
+  mostrarConfirmacaoNegarDef, voltarMotivoNegarDef,
   mudarMes,
   fecharModalDetalhe, abrirModalDetalheTransf, abrirModalDetalheVenda, abrirModalDia,
   abrirModalSugestao, fecharModalSugestao,
