@@ -27,6 +27,9 @@ let vendasCache = {};
 let usuarioAtual = null;
 let usuariosAprovados = [];      // usuários aprovados (para exigir autorizações)
 let autorizacoesPorVenda = {};   // venda_id -> [{id, usuario_id, usuario_nome, status}]
+let regrasCache = [];
+let diaLiberado = null;
+let filtroDiaVenda = "";
 
 /* ---------- Utilitários ---------- */
 function $(id) { return document.getElementById(id); }
@@ -247,9 +250,9 @@ function mudarAba(aba) {
   const titulos = {
     inicio:    ["Início", "Visão geral das transferências entre lojas."],
     calendario:["Calendário", "Controle de sugestões: quando foi feita, quando vence e o que está em atraso."],
-    sugestoes: ["Sugestões de Transferência", "Envie a planilha para a filial e registre o pedido quando ela responder."],
-    vendas:    ["Pedidos Avulsos", "Pedidos enviados pelas lojas com PDF aprovado — responda com o número do pedido."],
-    config:    ["Configurações", "Aprove cadastros, gerencie filiais e defina a agenda de sugestões."]
+    sugestoes: ["Sugestões de Transferência", "Disponível em breve."],
+    vendas:    ["Pedidos Avulsos", "Pedidos enviados pelas lojas com evidências — responda com o número do pedido."],
+    config:    ["Configurações", "Aprove cadastros, gerencie filiais, regras e o dia liberado para pedidos avulsos."]
   };
   $("titulo-pagina").innerText = titulos[aba][0];
   $("subtitulo-pagina").innerText = titulos[aba][1];
@@ -265,7 +268,8 @@ async function atualizarTudo(mostrarAviso = false) {
     carregarTransferencias(),
     carregarAprovacoes(),
     carregarUsuarios(),
-    carregarVendasSupabase()
+    carregarVendasSupabase(),
+    carregarExtras()
   ]);
   renderizarDropdownFilial();
   renderizarFiltros();
@@ -273,12 +277,22 @@ async function atualizarTudo(mostrarAviso = false) {
   renderizarTransferencias();
   renderizarVendas();
   renderizarFiliaisConfig();
+  renderizarRegras();
   if (mostrarAviso) mostrarToast("Dados atualizados.");
 }
 
 /* =========================================================
    DADOS — SUPABASE
    ========================================================= */
+async function carregarExtras() {
+  const [{ data: regras }, { data: cfg }] = await Promise.all([
+    supabase.from("regras_bloqueio").select("*").order("data_criacao", { ascending: false }),
+    supabase.from("configuracoes").select("valor").eq("chave", "dia_pedido_avulso").maybeSingle()
+  ]);
+  regrasCache = regras || [];
+  diaLiberado = cfg?.valor ?? null;
+}
+
 async function carregarFiliais() {
   const { data, error } = await supabase.from("filiais").select("*").order("id");
   if (!error) filiais = data || [];
@@ -379,6 +393,12 @@ function iniciarRealtime() {
     .on("postgres_changes", { event: "*", schema: "public", table: "autorizacoes_venda" }, () => {
       carregarVendasSupabase().then(() => { renderizarVendas(); renderizarInicio(); });
     })
+    .on("postgres_changes", { event: "*", schema: "public", table: "regras_bloqueio" }, () => {
+      carregarExtras().then(() => renderizarRegras());
+    })
+    .on("postgres_changes", { event: "*", schema: "public", table: "configuracoes" }, () => {
+      carregarExtras().then(() => renderizarFiltros());
+    })
     .subscribe();
 }
 
@@ -407,7 +427,7 @@ async function renderizarInicio() {
     card(pendentes, "aguardando loja", "border-t-amber-400", "fa-clock") +
     card(respondidas, "respondidas pela loja", "border-t-sky-400", "fa-reply") +
     card(pedidos, "pedidos registrados", "border-t-green-500", "fa-check-circle") +
-    card(vendasPendentes, "vendas casadas p/ responder", "border-t-indigo-400", "fa-box-open");
+    card(vendasPendentes, "pedidos avulsos p/ responder", "border-t-indigo-400", "fa-box-open");
 
   renderizarAgenda(transf);
   renderizarAtividade(transf, Object.values(vendasCache));
@@ -508,18 +528,18 @@ async function renderizarCalendario() {
         return `<span title="${escapeHtml(title)}" class="block text-[9px] font-bold px-1 py-0.5 rounded-sm border ${cor}">${prefixo}${escapeHtml(f.id)}</span>`;
       }).join("");
 
-    // ⬅ Indicador de atividade REAL naquele dia: sugestões e vendas casadas enviadas
+    // ⬅ Indicador de atividade REAL naquele dia: sugestões e pedidos avulsos enviados
     const mesmoDia = (d1, d2) => d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
     const nSugs = Object.values(transferenciasCache).filter(t => mesmoDia(new Date(t.data_envio), date)).length;
     const nVends = Object.values(vendasCache).filter(v => mesmoDia(new Date(v.data_envio), date)).length;
     const htmlEventos = (nSugs || nVends) ? `
       <div class="flex items-center gap-1.5 mt-0.5 text-[9px] font-bold">
         ${nSugs ? `<span class="text-green-600" title="${nSugs} sugestão(ões) enviada(s) neste dia"><i class="fas fa-exchange-alt mr-0.5"></i>${nSugs}</span>` : ""}
-        ${nVends ? `<span class="text-indigo-500" title="${nVends} venda(s) casada(s) enviada(s) neste dia"><i class="fas fa-box-open mr-0.5"></i>${nVends}</span>` : ""}
+        ${nVends ? `<span class="text-indigo-500" title="${nVends} pedido(s) avulso(s) enviado(s) neste dia"><i class="fas fa-box-open mr-0.5"></i>${nVends}</span>` : ""}
       </div>` : "";
 
     html += `
-      <div onclick="abrirModalDia(${calAno}, ${calMes}, ${dia})" title="Ver sugestões e vendas deste dia" class="min-h-[64px] border ${ehHoje ? "border-blue-400 bg-blue-50/40" : "border-slate-200"} rounded-sm p-1 cursor-pointer hover:border-blue-300 hover:bg-slate-50 transition-colors">
+      <div onclick="abrirModalDia(${calAno}, ${calMes}, ${dia})" title="Ver sugestões e pedidos deste dia" class="min-h-[64px] border ${ehHoje ? "border-blue-400 bg-blue-50/40" : "border-slate-200"} rounded-sm p-1 cursor-pointer hover:border-blue-300 hover:bg-slate-50 transition-colors">
         <span class="text-[10px] font-bold ${ehHoje ? "text-blue-700" : "text-slate-500"}">${dia}</span>
         <div class="flex flex-col gap-0.5 mt-0.5">${chips}</div>
         ${htmlEventos}
@@ -527,59 +547,6 @@ async function renderizarCalendario() {
   }
   html += "</div>";
   $("cal-grade").innerHTML = html;
-
-  // ---- Resumo por filial (removido da tela de Calendário; só renderiza se o elemento existir) ----
-  const elResumo = $("cal-resumo");
-  if (!elResumo) return;
-  if (!filiais.length) {
-    elResumo.innerHTML = '<p class="py-6 text-center text-slate-400 italic text-sm">Nenhuma filial cadastrada.</p>';
-    return;
-  }
-
-  elResumo.innerHTML = filiais.map(f => {
-    const ciclo = f.periodicidade === "quinzenal" ? 14 : 7;
-    const DIA = 86400000;
-
-    const ultima = Object.values(transferenciasCache)
-      .filter(t => t.filial === f.id)
-      .sort((a, b) => new Date(b.data_envio) - new Date(a.data_envio))[0] || null;
-
-    let proxima = null;
-    if (f.dia_semana !== null && f.dia_semana !== undefined) {
-      for (let i = 0; i < 120; i++) {
-        const d = new Date(hoje.getTime() + i * DIA);
-        if (dataDevidaFilial(f, d)) { proxima = d; break; }
-      }
-    }
-
-    let situacao;
-    if (!ultima) {
-      situacao = `<span class="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-1 rounded-sm uppercase">Nunca enviada</span>`;
-    } else {
-      const diasSemEnviar = Math.floor((hoje.getTime() - new Date(ultima.data_envio).getTime()) / DIA);
-      situacao = diasSemEnviar > ciclo
-        ? `<span class="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-1 rounded-sm uppercase">Em atraso (${diasSemEnviar - ciclo}d)</span>`
-        : `<span class="text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded-sm uppercase">Em dia</span>`;
-    }
-
-    const proximaTxt = proxima
-      ? proxima.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })
-      : `<span class="text-amber-600 font-bold">defina o dia</span>`;
-
-    return `
-      <div class="flex flex-col sm:flex-row sm:items-center gap-2 py-3 border-b border-slate-100 last:border-0">
-        <div class="sm:w-56 min-w-0">
-          <span class="text-sm font-bold text-slate-800">${escapeHtml(f.nome)}</span>
-          <span class="text-[10px] font-bold uppercase text-slate-400 ml-2">${f.periodicidade === "quinzenal" ? "Quinzenal" : "Semanal"}</span>
-        </div>
-        <div class="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-slate-500">
-          <span>Última: <strong class="text-slate-700">${ultima ? dataHoraBr(ultima.data_envio) : "—"}</strong></span>
-          <span>Próxima: <strong class="text-slate-700">${proximaTxt}</strong></span>
-          <span class="hidden sm:block">Resposta: <strong class="text-slate-700">${ultima ? (ultima.status === "pedido" ? "concluído" : ultima.status === "respondido" ? "aguardando pedido" : "aguardando loja") : "—"}</strong></span>
-        </div>
-        ${situacao}
-      </div>`;
-  }).join("");
 }
 
 function statusSugestaoLoja(filialId) {
@@ -680,13 +647,14 @@ function renderizarAtividade(transf, vendas) {
         </div>`;
     }
     const v = ev.item;
-    const encerrado = v.status === "aprovado" || v.status === "negado";
     const txt =
-      v.status === "aprovado" ? "Aprovada" :
-      v.status === "negado" ? "Negada" :
+      v.status === "aprovado" ? "Aprovado" :
+      v.status === "negado" ? "Negado" :
+      v.status === "negado_permanente" ? "Negado permanente" :
       v.status === "aguardando_autorizacoes" ? "Aguardando autorizações" :
       "Aguardando seu retorno";
     const cor = v.status === "aprovado" ? "text-green-700 border-l-green-600"
+      : v.status === "negado_permanente" ? "text-red-800 border-l-red-700"
       : v.status === "negado" ? "text-red-600 border-l-red-500"
       : v.status === "aguardando_autorizacoes" ? "text-amber-700 border-l-amber-400"
       : "text-indigo-700 border-l-indigo-400";
@@ -703,7 +671,7 @@ function renderizarAtividade(transf, vendas) {
 }
 
 /* =========================================================
-   ABA: SUGESTÕES
+   ABA: SUGESTÕES (em breve — código preservado)
    ========================================================= */
 function renderizarDropdownFilial() {
   preencherDropdown(
@@ -780,6 +748,19 @@ function renderizarFiltros() {
     { valor: "respondido", texto: "Respondida (aguardando pedido)" },
     { valor: "pedido", texto: "Pedido registrado" }
   ], filtroStatusTransf);
+  // ⬅ Filtro por dia da semana (pedidos avulsos) + dia liberado + dropdowns de regra
+  preencherDropdown("filtro-dia", [
+    { valor: "", texto: "Todos os dias" },
+    ...DIAS_SEMANA.map(d => ({ valor: d.n, texto: d.label }))
+  ], filtroDiaVenda);
+  preencherDropdown("dia-liberacao", DIAS_SEMANA.map(d => ({ valor: d.n, texto: d.label })), diaLiberado, "— Escolha o dia —");
+  preencherDropdownsRegra();
+}
+
+function preencherDropdownsRegra() {
+  const ops = filiais.map(f => ({ valor: f.id, texto: f.nome }));
+  preencherDropdown("regra-saida", ops, $("input-regra-saida")?.value, "— Selecione —");
+  preencherDropdown("regra-destino", ops, $("input-regra-destino")?.value, "— Selecione —");
 }
 
 /* ⬇ Badges reutilizáveis */
@@ -795,6 +776,8 @@ function badgeVenda(v, auts = []) {
   const pendentes = auts.filter(a => a.status === "pendente");
   if (v.status === "aprovado")
     return `<span class="text-[11px] font-bold text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-sm whitespace-nowrap"><i class="fas fa-check-circle mr-1"></i> Aprovado</span>`;
+  if (v.status === "negado_permanente")
+    return `<span class="text-[11px] font-bold text-red-800 bg-red-100 border border-red-300 px-2.5 py-1 rounded-sm whitespace-nowrap"><i class="fas fa-ban mr-1"></i> Negado permanente</span>`;
   if (v.status === "negado")
     return `<span class="text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-sm whitespace-nowrap"><i class="fas fa-times-circle mr-1"></i> Negado</span>`;
   if (v.status === "aguardando_autorizacoes")
@@ -890,6 +873,9 @@ function abrirModalDetalheVenda(id) {
   const pendentes = auts.filter(a => a.status === "pendente");
   const todosOk = auts.length > 0 && pendentes.length === 0;
   const pedidos = Array.isArray(v.pedidos) ? v.pedidos : [];
+  const evidencias = (Array.isArray(v.evidencias) && v.evidencias.length)
+    ? v.evidencias
+    : (v.arquivo_nome ? [{ nome: v.arquivo_nome, conteudo: v.arquivo_conteudo }] : []);
 
   let acoes = "";
   if (v.status === "pendente") {
@@ -923,9 +909,20 @@ function abrirModalDetalheVenda(id) {
   if (v.status === "aprovado") {
     rodape = `<p class="text-[11px] text-slate-500"><strong class="text-green-700">Concluído em:</strong> ${dataHoraBr(v.data_resposta)} &nbsp;·&nbsp; <strong>por:</strong> ${escapeHtml(v.respondido_por || "Admin")}</p>`;
   }
-  if (v.status === "negado") {
-    rodape = `<p class="text-[11px] text-slate-500"><strong class="text-red-600">Negado em:</strong> ${dataHoraBr(v.data_resposta)} &nbsp;·&nbsp; <strong>por:</strong> ${escapeHtml(v.respondido_por || "Admin")}</p>`;
+  if (v.status === "negado" || v.status === "negado_permanente") {
+    rodape = `<p class="text-[11px] text-slate-500"><strong class="text-red-600">${v.status === "negado_permanente" ? "Negado permanentemente em:" : "Negado em:"}</strong> ${dataHoraBr(v.data_resposta)} &nbsp;·&nbsp; <strong>por:</strong> ${escapeHtml(v.respondido_por || "Admin")}</p>`;
   }
+
+  const ajustesHtml = (Array.isArray(v.ajustes) && v.ajustes.length) ? `
+    <div>
+      <span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide block mb-1">Ajustes do lojista</span>
+      ${v.ajustes.map(a => `
+        <div class="border border-slate-200 bg-white rounded-sm px-2.5 py-2 mb-1">
+          <p class="text-[11px] text-slate-400">${escapeHtml(a.por)} · ${dataHoraBr(a.data)}</p>
+          ${a.obs ? `<p class="text-[11px] text-slate-600"><i class="fas fa-comment-dots text-sky-400 mr-1"></i>${escapeHtml(a.obs)}</p>` : ""}
+          ${(a.evidencias || []).map(ev => `<p class="text-[11px] text-slate-500"><i class="fas fa-paperclip text-slate-300 mr-1"></i><a href="#" onclick="event.preventDefault(); baixarEvidenciaAdmin('${v.id}', ${JSON.stringify(a.data)}, ${(a.evidencias || []).indexOf(ev)})" class="text-blue-700 font-bold">${escapeHtml(ev.nome)}</a></p>`).join("")}
+        </div>`).join("")}
+    </div>` : "";
 
   $("modal-detalhe-conteudo").innerHTML = `
     <h2 class="text-lg font-bold text-slate-800 mb-1">Pedido avulso</h2>
@@ -940,16 +937,27 @@ function abrirModalDetalheVenda(id) {
           <i class="fas fa-arrow-right text-slate-300 text-[9px]"></i>
           <span class="bg-white border border-slate-200 px-1.5 py-0.5 rounded-sm">Destino: ${nomeLoja(v.filial_destino)}</span>
         </div>`,
-        `<p class="text-[11px] text-slate-500"><i class="fas fa-paperclip text-slate-300 mr-1"></i><a href="#" onclick="event.preventDefault(); baixarVendaPorId('${v.id}')" class="text-blue-700 font-bold">${escapeHtml(v.arquivo_nome || "arquivo")}</a> <span class="text-slate-400">· ${dataHoraBr(v.data_envio)}</span></p>`,
+        `<p class="text-[11px] text-slate-500"><i class="fas fa-paperclip text-slate-300 mr-1"></i>${evidencias.map((ev, i) => `<a href="#" onclick="event.preventDefault(); baixarEvidencia('${v.id}', ${i})" class="text-blue-700 font-bold">${escapeHtml(ev.nome)}</a>`).join(" · ") || "—"} <span class="text-slate-400">· ${dataHoraBr(v.data_envio)}</span></p>`,
         v.obs ? `<p class="text-[11px] text-slate-500"><i class="fas fa-comment-dots text-indigo-300 mr-1"></i>${escapeHtml(v.obs)}</p>` : ""
       ])}
       ${auts.length ? `<div><span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide block mb-1">Autorizações</span>${chipsAutorizacoes(auts)}</div>` : ""}
       ${pedidos.length ? `<div><span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide block mb-1">Pedidos registrados</span>${blocoPedidos(pedidos)}</div>` : ""}
-      ${v.status === "negado" && v.motivo_negacao ? `<p class="text-[11px] text-red-600"><i class="fas fa-ban text-red-300 mr-1"></i><strong>${escapeHtml(v.motivo_negacao)}</strong></p>` : ""}
+      ${(v.status === "negado" || v.status === "negado_permanente") && v.motivo_negacao ? `<p class="text-[11px] text-red-600"><i class="fas fa-ban text-red-300 mr-1"></i><strong>${escapeHtml(v.motivo_negacao)}</strong></p>` : ""}
+      ${ajustesHtml}
       ${rodape}
     </div>
     ${acoes ? `<div class="flex justify-end items-center gap-2 pt-4 flex-wrap">${acoes}</div>` : ""}`;
   $("modal-detalhe").classList.remove("hidden");
+}
+
+/* ⬅ Download de evidências do pedido avulso (admin) */
+function baixarEvidencia(vendaId, i) {
+  const v = vendasCache[vendaId];
+  if (!v) return;
+  const lista = (Array.isArray(v.evidencias) && v.evidencias.length)
+    ? v.evidencias
+    : (v.arquivo_nome ? [{ nome: v.arquivo_nome, conteudo: v.arquivo_conteudo }] : []);
+  if (lista[i]) baixarArquivo(lista[i].nome, lista[i].conteudo);
 }
 
 /* ⬇ Clique no dia do calendário → sugestões enviadas naquele dia */
@@ -967,7 +975,7 @@ function abrirModalDia(ano, mes, dia) {
 
   $("modal-detalhe-conteudo").innerHTML = `
     <h2 class="text-lg font-bold text-slate-800 mb-1">${inicio.toLocaleDateString("pt-BR")}</h2>
-    <p class="text-xs text-slate-500 mb-4">${sugs.length} sugestão(ões) · ${vends.length} venda(s) casada(s)</p>
+    <p class="text-xs text-slate-500 mb-4">${sugs.length} sugestão(ões) · ${vends.length} pedido(s) avulso(s)</p>
 
     ${sugs.length ? `
       <p class="text-[10px] font-extrabold uppercase tracking-wide text-slate-400 mb-1.5 flex items-center gap-1.5">
@@ -1017,6 +1025,7 @@ function renderizarTransferencias() {
   if (filtroTransf) lista = lista.filter(t => t.filial === filtroTransf);
   if (filtroStatusTransf) lista = lista.filter(t => t.status === filtroStatusTransf);
   const container = $("lista-transferencias");
+  if (!container) return;
 
   if (lista.length === 0) {
     container.innerHTML = `<p class="py-8 text-center text-slate-400 italic text-sm">${filtroTransf ? "Nenhuma transferência para esta filial." : "Nenhuma transferência enviada ainda."}</p>`;
@@ -1155,7 +1164,7 @@ async function confirmarPedido() {
 }
 
 /* =========================================================
-   MODAL: NEGAR VENDA CASADA (motivo obrigatório)
+   MODAL: NEGAR PEDIDO AVULSO (motivo obrigatório + opcional permanente)
    ========================================================= */
 let vendaNegando = null;
 
@@ -1166,6 +1175,7 @@ function abrirModalNegar(id) {
   $("modal-negar-info").innerText =
     `${escapeHtml(v.usuario_nome || nomeLoja(v.loja_id))} · pedido avulso (${nomeLoja(v.filial_saida)} → ${nomeLoja(v.filial_destino)}).`;
   $("input-motivo-negacao").value = "";
+  $("check-negar-permanente").checked = false;
   $("msg-modal-negar").classList.add("hidden");
   $("modal-negar").classList.remove("hidden");
 }
@@ -1182,15 +1192,21 @@ async function confirmarNegacao() {
     $("msg-modal-negar").classList.remove("hidden");
     return;
   }
+  const permanente = $("check-negar-permanente")?.checked || false;
   const { error } = await supabase.from("vendas_casadas")
-    .update({ status: "negado", motivo_negacao: motivo, data_resposta: new Date().toISOString(), respondido_por: usuarioAtual.nome })
+    .update({
+      status: permanente ? "negado_permanente" : "negado",
+      motivo_negacao: motivo,
+      data_resposta: new Date().toISOString(),
+      respondido_por: usuarioAtual.nome
+    })
     .eq("id", vendaNegando);
   if (error) { mostrarToast("Erro: " + error.message); return; }
   fecharModalNegar();
   await carregarVendasSupabase();
   renderizarVendas();
   renderizarInicio();
-  mostrarToast("Pedido negado.");
+  mostrarToast(permanente ? "Pedido negado permanentemente." : "Pedido negado — o lojista poderá ajustar e responder.");
 }
 
 /* =========================================================
@@ -1263,18 +1279,22 @@ async function confirmarAutorizacoes() {
 }
 
 /* =========================================================
-   ABA: VENDAS CASADAS — Supabase, com autorizações e negativa
+   ABA: PEDIDOS AVULSOS — lista resumida com filtros
    ========================================================= */
-/* ⬇ Lista RESUMIDA de vendas casadas + filtro por filial (saída, destino ou solicitante) */
 function renderizarVendas() {
   let lista = Object.values(vendasCache)
     .sort((a, b) => new Date(b.data_envio) - new Date(a.data_envio));
   if (filtroVenda) lista = lista.filter(v =>
     v.filial_saida === filtroVenda || v.filial_destino === filtroVenda || v.loja_id === filtroVenda);
+  // ⬅ Filtro por dia da semana: filiais agendadas nesse dia
+  if (filtroDiaVenda !== "") lista = lista.filter(v => {
+    const f = filiais.find(x => x.id === v.loja_id);
+    return f && String(f.dia_semana) === String(filtroDiaVenda);
+  });
   const container = $("lista-vendas");
 
   if (lista.length === 0) {
-    container.innerHTML = `<p class="py-8 text-center text-slate-400 italic text-sm">${filtroVenda ? "Nenhum pedido avulso envolvendo esta filial." : "Nenhum pedido avulso recebido."}</p>`;
+    container.innerHTML = `<p class="py-8 text-center text-slate-400 italic text-sm">${filtroVenda || filtroDiaVenda !== "" ? "Nenhum pedido avulso para este filtro." : "Nenhum pedido avulso recebido."}</p>`;
     return;
   }
 
@@ -1282,6 +1302,7 @@ function renderizarVendas() {
     const auts = autorizacoesPorVenda[v.id] || [];
     const corBorda =
       v.status === "aprovado" ? "border-l-green-600" :
+      v.status === "negado_permanente" ? "border-l-red-700" :
       v.status === "negado" ? "border-l-red-500" :
       v.status === "aguardando_autorizacoes" ? "border-l-amber-400" : "border-l-indigo-400";
 
@@ -1310,7 +1331,7 @@ function baixarVendaPorId(id) {
 }
 
 /* =========================================================
-   ABA: CONFIGURAÇÕES — aprovações, filiais e agenda
+   ABA: CONFIGURAÇÕES — aprovações, filiais, regras e dia liberado
    ========================================================= */
 /* ⬇⬇⬇ ROLES DE APROVAÇÃO — EDITE AQUI SE PRECISAR ⬇⬇⬇ */
 const ROLES_APROVACAO = ["gestor", "supervisor", "vendedor", "administrativo"];
@@ -1550,6 +1571,15 @@ document.addEventListener("change", async e => {
     filtroVenda = alvo.value;
     renderizarVendas();
     return;
+  } else if (alvo.id === "input-filtro-dia") {
+    // ⬅ Filtro por dia da semana (pedidos avulsos)
+    filtroDiaVenda = alvo.value;
+    renderizarVendas();
+    return;
+  } else if (alvo.id === "input-dia-liberacao") {
+    // ⬅ Dia liberado para pedidos avulsos
+    await salvarDiaLiberacao(alvo.value);
+    return;
   }
   if (!filialId || !campo) return;
 
@@ -1557,9 +1587,7 @@ document.addEventListener("change", async e => {
     ? (alvo.value === "" ? null : parseInt(alvo.value))
     : campo === "ciclo_inicio"
       ? (alvo.value || null)
-      : campo === "nome"
-        ? alvo.value.trim()
-        : alvo.value;
+      : alvo.value;
 
   const { error } = await supabase.from("filiais").update({ [campo]: valor }).eq("id", filialId);
   if (error) { mostrarToast("Erro ao salvar: " + error.message); return; }
@@ -1620,11 +1648,102 @@ async function excluirFilial(id) {
   mostrarToast(`Filial "${f.nome}" excluída.`);
 }
 
+/* =========================================================
+   REGRAS DE BLOQUEIO + DIA LIBERADO
+   ========================================================= */
+async function salvarDiaLiberacao(valor) {
+  diaLiberado = valor || null;
+  const { error } = await supabase.from("configuracoes")
+    .upsert({ chave: "dia_pedido_avulso", valor: valor });
+  if (error) { mostrarToast("Erro ao salvar: " + error.message); return; }
+  mostrarToast("Dia liberado atualizado.");
+}
+
+function renderizarRegras() {
+  const container = $("lista-regras");
+  if (!container) return;
+  if (!regrasCache.length) {
+    container.innerHTML = '<p class="py-4 text-center text-slate-400 italic text-xs">Nenhuma regra criada.</p>';
+    return;
+  }
+  container.innerHTML = regrasCache.map(r => `
+    <div class="flex items-center justify-between gap-3 py-2.5 border-b border-slate-100 last:border-0 flex-wrap">
+      <div class="flex items-center gap-2 flex-wrap text-xs font-bold text-slate-700">
+        <span class="bg-slate-100 border border-slate-200 px-2 py-1 rounded-sm">${nomeLoja(r.filial_saida)}</span>
+        <i class="fas fa-arrow-right text-slate-300"></i>
+        <span class="bg-slate-100 border border-slate-200 px-2 py-1 rounded-sm">${nomeLoja(r.filial_destino)}</span>
+        ${r.motivo ? `<span class="font-normal text-slate-400">· ${escapeHtml(r.motivo)}</span>` : ""}
+      </div>
+      <div class="flex gap-2">
+        <button onclick="editarRegra('${r.id}')" class="border border-slate-300 text-slate-600 hover:bg-slate-100 px-3 py-1.5 rounded-sm text-xs font-bold transition-colors whitespace-nowrap">
+          <i class="fas fa-pen mr-1"></i> Editar
+        </button>
+        <button onclick="excluirRegra('${r.id}')" class="border border-slate-200 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-sm text-xs font-bold transition-colors whitespace-nowrap">
+          <i class="fas fa-trash mr-1"></i> Excluir
+        </button>
+      </div>
+    </div>`).join("");
+}
+
+let regraEditando = null;
+
+$("form-regra").addEventListener("submit", async e => {
+  e.preventDefault();
+  const msg = $("msg-regra");
+  const saida = $("input-regra-saida").value;
+  const destino = $("input-regra-destino").value;
+  const motivo = $("regra-motivo").value.trim() || null;
+
+  if (!saida || !destino) { msg.innerText = "Selecione as duas filiais."; msg.classList.remove("hidden"); return; }
+  if (saida === destino) { msg.innerText = "Saída e destino não podem ser iguais."; msg.classList.remove("hidden"); return; }
+
+  let error;
+  if (regraEditando) {
+    ({ error } = await supabase.from("regras_bloqueio")
+      .update({ filial_saida: saida, filial_destino: destino, motivo })
+      .eq("id", regraEditando));
+  } else {
+    ({ error } = await supabase.from("regras_bloqueio")
+      .insert([{ filial_saida: saida, filial_destino: destino, motivo }]));
+  }
+  if (error) { msg.innerText = "Erro: " + error.message; msg.classList.remove("hidden"); return; }
+
+  regraEditando = null;
+  $("btn-regra").innerHTML = '<i class="fas fa-plus mr-2"></i> Criar regra';
+  $("form-regra").reset();
+  $("input-regra-saida").value = "";
+  $("input-regra-destino").value = "";
+  preencherDropdownsRegra();
+  msg.classList.add("hidden");
+  await carregarExtras();
+  renderizarRegras();
+  mostrarToast("Regra salva.");
+});
+
+function editarRegra(id) {
+  const r = regrasCache.find(x => x.id === id);
+  if (!r) return;
+  regraEditando = id;
+  $("regra-motivo").value = r.motivo || "";
+  $("btn-regra").innerHTML = '<i class="fas fa-save mr-2"></i> Salvar alteração';
+  const ops = filiais.map(f => ({ valor: f.id, texto: f.nome }));
+  preencherDropdown("regra-saida", ops, r.filial_saida, "— Selecione —");
+  preencherDropdown("regra-destino", ops, r.filial_destino, "— Selecione —");
+}
+
+async function excluirRegra(id) {
+  if (!confirm("Excluir esta regra de bloqueio?")) return;
+  await supabase.from("regras_bloqueio").delete().eq("id", id);
+  await carregarExtras();
+  renderizarRegras();
+  mostrarToast("Regra excluída.");
+}
+
 /* ---------- Expõe funções usadas nos onclick inline ---------- */
 Object.assign(window, {
   toggleDropdown, toggleSidebarDesktop, toggleMobileMenu, mudarAba,
   atualizarTudo, sairDoSistema, abrirModalPedido, fecharModalPedido,
-  confirmarPedido, adicionarLinhaPedido, baixarTransfPorId, baixarVendaPorId,
+  confirmarPedido, adicionarLinhaPedido, baixarTransfPorId, baixarVendaPorId, baixarEvidencia,
   aprovarUsuario, reprovarUsuario, excluirFilial,
   abrirModalNegar, fecharModalNegar, confirmarNegacao,
   abrirModalAutorizacoes, fecharModalAutorizacoes, confirmarAutorizacoes,
@@ -1632,5 +1751,6 @@ Object.assign(window, {
   fecharModalDetalhe, abrirModalDetalheTransf, abrirModalDetalheVenda, abrirModalDia,
   abrirModalSugestao, fecharModalSugestao,
   abrirModalEditarFilial, fecharModalEditarFilial, confirmarEdicaoFilial,
-  toggleFilialAtiva
+  toggleFilialAtiva,
+  editarRegra, excluirRegra
 });
