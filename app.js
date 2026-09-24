@@ -44,7 +44,7 @@ function mostrarToast(msg) {
 
 function nomeLoja(id) {
   const f = filiais.find(x => x.id === id);   // tabela "filiais" do Supabase
-  return f ? f.nome : id;
+  return f ? `${f.id} - ${f.nome}` : id;      // ⬅ sempre "código - nome"
 }
 
 function dataHoraBr(iso) {
@@ -877,14 +877,27 @@ function abrirModalDetalheVenda(id) {
     ? v.evidencias
     : (v.arquivo_nome ? [{ nome: v.arquivo_nome, conteudo: v.arquivo_conteudo }] : []);
 
+  // ---- BLOCO 1: PEDIDO ENVIADO ----
+  const blocoPedido = blocoFase("Pedido enviado", [
+    `<p class="text-[11px] text-slate-500"><strong>Solicitante:</strong> ${escapeHtml(v.usuario_nome || nomeLoja(v.loja_id))} · ${dataHoraBr(v.data_envio)}</p>`,
+    `<div class="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 flex-wrap">
+      <span class="bg-white border border-slate-200 px-1.5 py-0.5 rounded-sm">Saída: ${nomeLoja(v.filial_saida)}</span>
+      <i class="fas fa-arrow-right text-slate-300 text-[9px]"></i>
+      <span class="bg-white border border-slate-200 px-1.5 py-0.5 rounded-sm">Destino: ${nomeLoja(v.filial_destino)}</span>
+    </div>`,
+    evidencias.length ? `<p class="text-[11px] text-slate-500"><i class="fas fa-paperclip text-slate-300 mr-1"></i>${evidencias.map((ev, i) => `<a href="#" onclick="event.preventDefault(); baixarEvidencia('${v.id}', ${i})" class="text-blue-700 font-bold">${escapeHtml(ev.nome)}</a>`).join(" · ")}</p>` : "",
+    v.obs ? `<p class="text-[11px] text-slate-500"><i class="fas fa-comment-dots text-indigo-300 mr-1"></i>${escapeHtml(v.obs)}</p>` : ""
+  ]);
+
+  // ⬅ Duas ações: Negar (loja pode ajustar) e Negar definitivo (sem retorno)
   let acoes = "";
   if (v.status === "pendente") {
     acoes = `
-      <button onclick="fecharModalDetalhe(); abrirModalAutorizacoes('${v.id}')" class="border border-slate-300 text-slate-600 hover:bg-slate-100 px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap">
-        <i class="fas fa-user-shield mr-1"></i> Exigir autorizações
-      </button>
-      <button onclick="fecharModalDetalhe(); abrirModalNegar('${v.id}')" class="border border-red-200 text-red-600 hover:bg-red-50 px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap">
+      <button onclick="fecharModalDetalhe(); abrirModalNegar('${v.id}', false)" class="border border-red-200 text-red-600 hover:bg-red-50 px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap">
         <i class="fas fa-times mr-1"></i> Negar
+      </button>
+      <button onclick="fecharModalDetalhe(); abrirModalNegar('${v.id}', true)" class="bg-red-700 hover:bg-red-800 text-white px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap" title="A loja NÃO poderá responder">
+        <i class="fas fa-ban mr-1"></i> Negar definitivo
       </button>
       <button onclick="fecharModalDetalhe(); abrirModalPedido('vendaCasada', '${v.id}')" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap">
         <i class="fas fa-clipboard-check mr-1"></i> Aprovar e registrar pedido(s)
@@ -905,12 +918,27 @@ function abrirModalDetalheVenda(id) {
          </button>`;
   }
 
-  let rodape = "";
+  // ⬅ BLOCO FINAL: RESPOSTA DO ADMIN (sempre por último)
+  let blocoResposta = "";
   if (v.status === "aprovado") {
-    rodape = `<p class="text-[11px] text-slate-500"><strong class="text-green-700">Concluído em:</strong> ${dataHoraBr(v.data_resposta)} &nbsp;·&nbsp; <strong>por:</strong> ${escapeHtml(v.respondido_por || "Admin")}</p>`;
+    blocoResposta = `
+      <div>
+        <span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide block mb-1">Resposta do admin — APROVADO</span>
+        <div class="border border-green-200 bg-green-50 rounded-sm px-3 py-2 flex flex-col gap-1">
+          ${pedidos.length ? blocoPedidos(pedidos) : `<p class="text-[11px] text-green-700 italic">Sem pedidos registrados.</p>`}
+          <p class="text-[11px] text-green-700"><strong>Concluído em:</strong> ${dataHoraBr(v.data_resposta)} &nbsp;·&nbsp; <strong>por:</strong> ${escapeHtml(v.respondido_por || "Admin")}</p>
+        </div>
+      </div>`;
   }
   if (v.status === "negado" || v.status === "negado_permanente") {
-    rodape = `<p class="text-[11px] text-slate-500"><strong class="text-red-600">${v.status === "negado_permanente" ? "Negado permanentemente em:" : "Negado em:"}</strong> ${dataHoraBr(v.data_resposta)} &nbsp;·&nbsp; <strong>por:</strong> ${escapeHtml(v.respondido_por || "Admin")}</p>`;
+    blocoResposta = `
+      <div>
+        <span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide block mb-1">Resposta do admin — ${v.status === "negado_permanente" ? "NEGADO DEFINITIVAMENTE" : "NEGADO"}</span>
+        <div class="border border-red-200 bg-red-50 rounded-sm px-3 py-2 flex flex-col gap-1">
+          ${v.motivo_negacao ? `<p class="text-[11px] text-red-600"><i class="fas fa-ban text-red-300 mr-1"></i><strong>${escapeHtml(v.motivo_negacao)}</strong></p>` : ""}
+          <p class="text-[11px] text-red-600"><strong>${v.status === "negado_permanente" ? "Negado definitivamente em:" : "Negado em:"}</strong> ${dataHoraBr(v.data_resposta)} &nbsp;·&nbsp; <strong>por:</strong> ${escapeHtml(v.respondido_por || "Admin")}</p>
+        </div>
+      </div>`;
   }
 
   const ajustesHtml = (Array.isArray(v.ajustes) && v.ajustes.length) ? `
@@ -931,20 +959,9 @@ function abrirModalDetalheVenda(id) {
       ${badgeVenda(v, auts)}
     </div>
     <div class="flex flex-col gap-3">
-      ${blocoFase("Pedido enviado", [
-        `<div class="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 flex-wrap">
-          <span class="bg-white border border-slate-200 px-1.5 py-0.5 rounded-sm">Saída: ${nomeLoja(v.filial_saida)}</span>
-          <i class="fas fa-arrow-right text-slate-300 text-[9px]"></i>
-          <span class="bg-white border border-slate-200 px-1.5 py-0.5 rounded-sm">Destino: ${nomeLoja(v.filial_destino)}</span>
-        </div>`,
-        `<p class="text-[11px] text-slate-500"><i class="fas fa-paperclip text-slate-300 mr-1"></i>${evidencias.map((ev, i) => `<a href="#" onclick="event.preventDefault(); baixarEvidencia('${v.id}', ${i})" class="text-blue-700 font-bold">${escapeHtml(ev.nome)}</a>`).join(" · ") || "—"} <span class="text-slate-400">· ${dataHoraBr(v.data_envio)}</span></p>`,
-        v.obs ? `<p class="text-[11px] text-slate-500"><i class="fas fa-comment-dots text-indigo-300 mr-1"></i>${escapeHtml(v.obs)}</p>` : ""
-      ])}
-      ${auts.length ? `<div><span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide block mb-1">Autorizações</span>${chipsAutorizacoes(auts)}</div>` : ""}
-      ${pedidos.length ? `<div><span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide block mb-1">Pedidos registrados</span>${blocoPedidos(pedidos)}</div>` : ""}
-      ${(v.status === "negado" || v.status === "negado_permanente") && v.motivo_negacao ? `<p class="text-[11px] text-red-600"><i class="fas fa-ban text-red-300 mr-1"></i><strong>${escapeHtml(v.motivo_negacao)}</strong></p>` : ""}
+      ${blocoPedido}
       ${ajustesHtml}
-      ${rodape}
+      ${blocoResposta}
     </div>
     ${acoes ? `<div class="flex justify-end items-center gap-2 pt-4 flex-wrap">${acoes}</div>` : ""}`;
   $("modal-detalhe").classList.remove("hidden");
@@ -1168,16 +1185,17 @@ async function confirmarPedido() {
    ========================================================= */
 let vendaNegando = null;
 
-function abrirModalNegar(id) {
+function abrirModalNegar(id, definitivo = false) {
   vendaNegando = id;
   const v = vendasCache[id];
   if (!v) return;
   $("modal-negar-info").innerText =
     `${escapeHtml(v.usuario_nome || nomeLoja(v.loja_id))} · pedido avulso (${nomeLoja(v.filial_saida)} → ${nomeLoja(v.filial_destino)}).`;
   $("input-motivo-negacao").value = "";
-  $("check-negar-permanente").checked = false;
+  $("check-negar-permanente").checked = definitivo;
   $("msg-modal-negar").classList.add("hidden");
   $("modal-negar").classList.remove("hidden");
+  if (definitivo) $("input-motivo-negacao").focus();
 }
 
 function fecharModalNegar() {
@@ -1193,6 +1211,7 @@ async function confirmarNegacao() {
     return;
   }
   const permanente = $("check-negar-permanente")?.checked || false;
+  if (permanente && !confirm("Negar DEFINITIVAMENTE?\n\nA loja NÃO poderá responder ou ajustar este pedido. Essa ação não pode ser desfeita.")) return;
   const { error } = await supabase.from("vendas_casadas")
     .update({
       status: permanente ? "negado_permanente" : "negado",
@@ -1210,33 +1229,23 @@ async function confirmarNegacao() {
 }
 
 /* =========================================================
-   MODAL: EXIGIR AUTORIZAÇÕES (uma ou mais pessoas)
+   ACORDEÃO DAS CONFIGURAÇÕES
+   ========================================================= */
+function toggleAccordion(id) {
+  const corpo = $(id);
+  const seta = $("seta-" + id);
+  if (!corpo) return;
+  corpo.classList.toggle("hidden");
+  seta?.classList.toggle("rotate-180", !corpo.classList.contains("hidden"));
+}
+
+/* =========================================================
+   MODAL: EXIGIR AUTORIZAÇÕES (mantido para registros antigos — sem uso novo)
    ========================================================= */
 let vendaAutorizando = null;
 
 function abrirModalAutorizacoes(id) {
-  vendaAutorizando = id;
-  const container = $("lista-opcoes-autorizacao");
-  const jaExigidos = (autorizacoesPorVenda[id] || []).map(a => a.usuario_id);
-
-  // ⬅ Autorização só pode ser exigida de GESTOR ou SUPERVISOR
-  container.innerHTML = usuariosAprovados
-    .filter(u => ["gestor", "supervisor"].includes(u.role) && !jaExigidos.includes(u.id))
-    .map(u => `
-      <label class="flex items-center gap-3 px-3 py-2 hover:bg-blue-50 rounded-sm cursor-pointer border border-slate-100">
-        <input type="checkbox" class="aut-check w-4 h-4 text-blue-600 rounded border-slate-300 cursor-pointer" value="${u.id}" data-nome="${escapeHtml(u.nome)}">
-        <div class="min-w-0">
-          <p class="text-xs font-bold text-slate-800 truncate">${escapeHtml(u.nome)}</p>
-          <p class="text-[10px] text-slate-400">${escapeHtml(u.role)} · filial ${escapeHtml(u.filial)}</p>
-        </div>
-      </label>`).join("");
-
-  if (!container.innerHTML) {
-    container.innerHTML = '<p class="text-xs text-slate-400 italic py-4 text-center">Nenhum usuário disponível para autorizar.</p>';
-  }
-
-  $("msg-modal-autorizacoes").classList.add("hidden");
-  $("modal-autorizacoes").classList.remove("hidden");
+  mostrarToast("Exigir autorizações não está mais disponível. Use Negar ou Negar definitivo.");
 }
 
 function fecharModalAutorizacoes() {
@@ -1752,5 +1761,6 @@ Object.assign(window, {
   abrirModalSugestao, fecharModalSugestao,
   abrirModalEditarFilial, fecharModalEditarFilial, confirmarEdicaoFilial,
   toggleFilialAtiva,
-  editarRegra, excluirRegra
+  editarRegra, excluirRegra,
+  toggleAccordion
 });

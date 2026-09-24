@@ -302,133 +302,153 @@
                         </div>
                     </section>
 
-                    <!-- ===== ABA: CONFIGURAÇÕES ===== -->
-                    <section id="secao-config" class="hidden space-y-6">
+                    <!-- ===== ABA: CONFIGURAÇÕES (acordeão) ===== -->
+                    <section id="secao-config" class="hidden space-y-3">
 
                         <!-- Aprovações de cadastro -->
-                        <div class="bg-white border border-slate-200 rounded-sm p-5">
-                            <h3 class="text-base font-bold text-slate-800 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2">
-                                <i class="fas fa-user-check text-blue-700"></i> Cadastros aguardando aprovação
-                                <span id="badge-aprovacoes" class="hidden text-[10px] font-extrabold text-white bg-amber-500 px-2 py-0.5 rounded-full">0</span>
-                            </h3>
-                            <div id="lista-aprovacoes"></div>
-                        </div>
-
-                        <!-- Filiais -->
-                        <div class="bg-white border border-slate-200 rounded-sm p-5">
-                            <h3 class="text-base font-bold text-slate-800 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2">
-                                <i class="fas fa-store text-blue-700"></i> Adicionar filial
-                            </h3>
-                            <form id="form-filial" class="space-y-4">
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Código da filial</label>
-                                        <input type="text" id="filial-id" required placeholder="Ex.: 1015"
-                                               class="w-full px-3 py-2.5 rounded border text-sm outline-none transition-all bg-slate-50 border-slate-200 focus:ring-2 focus:ring-blue-700/20 focus:border-blue-700">
-                                    </div>
-                                    <div>
-                                        <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Nome da filial</label>
-                                        <input type="text" id="filial-nome" required placeholder="Ex.: Loja 1015"
-                                               class="w-full px-3 py-2.5 rounded border text-sm outline-none transition-all bg-slate-50 border-slate-200 focus:ring-2 focus:ring-blue-700/20 focus:border-blue-700">
-                                    </div>
-                                </div>
-                                <p id="msg-nova-filial" class="text-xs text-red-600 font-medium hidden"></p>
-                                <button type="submit" class="bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2.5 px-6 rounded transition-all text-xs uppercase tracking-widest">
-                                    <i class="fas fa-plus mr-2"></i> Adicionar
-                                </button>
-                            </form>
-                        </div>
-
-                        <!-- Agenda por filial -->
-                        <div class="bg-white border border-slate-200 rounded-sm p-5">
-                            <h3 class="text-base font-bold text-slate-800 border-b border-slate-100 pb-3 mb-2 flex items-center gap-2">
-                                <i class="fas fa-calendar-check text-blue-700"></i> Agenda de sugestões por filial
-                            </h3>
-                            <p class="text-xs text-slate-400 mb-4">Defina se cada filial recebe sugestões <strong>semanalmente</strong> ou <strong>quinzenalmente</strong>, e em qual dia da semana.</p>
-                            <div id="lista-filiais"></div>
-                        </div>
-
-                        <!-- Regras de bloqueio de transferência -->
-                        <div class="bg-white border border-slate-200 rounded-sm p-5">
-                            <h3 class="text-base font-bold text-slate-800 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2">
-                                <i class="fas fa-ban text-red-500"></i> Regras de bloqueio de transferência
-                            </h3>
-                            <p class="text-xs text-slate-400 mb-4">Bloqueie transferências entre filiais específicas. O lojista verá um aviso ao tentar registrar um pedido avulso bloqueado.</p>
-                            <form id="form-regra" class="space-y-4">
-                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    <div>
-                                        <label class="block text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">Filial de saída</label>
-                                        <div class="relative custom-dropdown w-full" id="dropdown-regra-saida">
-                                            <button type="button" onclick="toggleDropdown('regra-saida')"
-                                                    class="w-full bg-white border border-slate-300 rounded-sm py-2 px-3 text-xs font-bold text-slate-700 flex justify-between items-center hover:border-blue-400 transition-all outline-none">
-                                                <span id="texto-regra-saida" class="truncate pr-2 text-left">— Selecione —</span>
-                                                <svg class="seta w-3.5 h-3.5 text-slate-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                                </svg>
-                                            </button>
-                                            <div id="lista-regra-saida" class="hidden absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-sm shadow-lg max-h-60 overflow-y-auto custom-scrollbar">
-                                                <ul id="opcoes-regra-saida" class="py-1 text-xs text-slate-700 font-bold"></ul>
-                                            </div>
-                                            <input type="hidden" id="input-regra-saida" value="">
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label class="block text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">Filial de destino</label>
-                                        <div class="relative custom-dropdown w-full" id="dropdown-regra-destino">
-                                            <button type="button" onclick="toggleDropdown('regra-destino')"
-                                                    class="w-full bg-white border border-slate-300 rounded-sm py-2 px-3 text-xs font-bold text-slate-700 flex justify-between items-center hover:border-blue-400 transition-all outline-none">
-                                                <span id="texto-regra-destino" class="truncate pr-2 text-left">— Selecione —</span>
-                                                <svg class="seta w-3.5 h-3.5 text-slate-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                                </svg>
-                                            </button>
-                                            <div id="lista-regra-destino" class="hidden absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-sm shadow-lg max-h-60 overflow-y-auto custom-scrollbar">
-                                                <ul id="opcoes-regra-destino" class="py-1 text-xs text-slate-700 font-bold"></ul>
-                                            </div>
-                                            <input type="hidden" id="input-regra-destino" value="">
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label class="block text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">Motivo (opcional)</label>
-                                        <input type="text" id="regra-motivo" placeholder="Ex.: CD sem saldo"
-                                               class="w-full px-3 py-2 rounded border text-sm outline-none transition-all bg-slate-50 border-slate-200 focus:ring-2 focus:ring-blue-700/20 focus:border-blue-700">
-                                    </div>
-                                </div>
-                                <p id="msg-regra" class="text-xs text-red-600 font-medium hidden"></p>
-                                <button type="submit" id="btn-regra" class="bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2.5 px-6 rounded transition-all text-xs uppercase tracking-widest">
-                                    <i class="fas fa-plus mr-2"></i> Criar regra
-                                </button>
-                            </form>
-                            <div id="lista-regras" class="mt-4"></div>
-                        </div>
-
-                        <!-- Dia liberado para pedidos avulsos -->
-                        <div class="bg-white border border-slate-200 rounded-sm p-5">
-                            <h3 class="text-base font-bold text-slate-800 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2">
-                                <i class="fas fa-calendar-check text-blue-700"></i> Dia liberado para pedidos avulsos
-                            </h3>
-                            <p class="text-xs text-slate-400 mb-4">Nesse dia da semana as lojas podem registrar pedidos avulsos. Fora dele, o botão fica bloqueado com o lembrete do próximo dia.</p>
-                            <div class="relative custom-dropdown w-full sm:w-64" id="dropdown-dia-liberacao">
-                                <button type="button" onclick="toggleDropdown('dia-liberacao')"
-                                        class="w-full bg-white border border-slate-300 rounded-sm py-2 px-3 text-xs font-bold text-slate-700 flex justify-between items-center hover:border-blue-400 transition-all outline-none">
-                                    <span id="texto-dia-liberacao" class="truncate pr-2 text-left">— Escolha o dia —</span>
-                                    <svg class="seta w-3.5 h-3.5 text-slate-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                    </svg>
-                                </button>
-                                <div id="lista-dia-liberacao" class="hidden absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-sm shadow-lg max-h-60 overflow-y-auto custom-scrollbar">
-                                    <ul id="opcoes-dia-liberacao" class="py-1 text-xs text-slate-700 font-bold"></ul>
-                                </div>
-                                <input type="hidden" id="input-dia-liberacao" value="">
+                        <div class="bg-white border border-slate-200 rounded-sm overflow-hidden">
+                            <button onclick="toggleAccordion('cfg-aprov')" class="w-full flex items-center justify-between gap-3 p-5 text-left hover:bg-slate-50 transition-colors">
+                                <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                                    <i class="fas fa-user-check text-blue-700"></i> Cadastros aguardando aprovação
+                                    <span id="badge-aprovacoes" class="hidden text-[10px] font-extrabold text-white bg-amber-500 px-2 py-0.5 rounded-full">0</span>
+                                </h3>
+                                <i id="seta-cfg-aprov" class="fas fa-chevron-down text-slate-400 transition-transform"></i>
+                            </button>
+                            <div id="cfg-aprov" class="hidden border-t border-slate-100 px-5 py-4">
+                                <div id="lista-aprovacoes"></div>
                             </div>
                         </div>
 
-                        <!-- Usuários aprovados -->
-                        <div class="bg-white border border-slate-200 rounded-sm p-5">
-                            <h3 class="text-base font-bold text-slate-800 border-b border-slate-100 pb-3 mb-2 flex items-center gap-2">
-                                <i class="fas fa-users text-blue-700"></i> Usuários cadastrados
-                            </h3>
-                            <div id="lista-usuarios"></div>
+                        <!-- Filiais -->
+                        <div class="bg-white border border-slate-200 rounded-sm overflow-hidden">
+                            <button onclick="toggleAccordion('cfg-filiais')" class="w-full flex items-center justify-between gap-3 p-5 text-left hover:bg-slate-50 transition-colors">
+                                <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                                    <i class="fas fa-store text-blue-700"></i> Filiais
+                                </h3>
+                                <i id="seta-cfg-filiais" class="fas fa-chevron-down text-slate-400 transition-transform"></i>
+                            </button>
+                            <div id="cfg-filiais" class="hidden border-t border-slate-100 px-5 py-4 space-y-5">
+                                <form id="form-filial" class="space-y-4">
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Código da filial</label>
+                                            <input type="text" id="filial-id" required placeholder="Ex.: 1015"
+                                                   class="w-full px-3 py-2.5 rounded border text-sm outline-none transition-all bg-slate-50 border-slate-200 focus:ring-2 focus:ring-blue-700/20 focus:border-blue-700">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Nome da filial</label>
+                                            <input type="text" id="filial-nome" required placeholder="Ex.: Loja 1015"
+                                                   class="w-full px-3 py-2.5 rounded border text-sm outline-none transition-all bg-slate-50 border-slate-200 focus:ring-2 focus:ring-blue-700/20 focus:border-blue-700">
+                                        </div>
+                                    </div>
+                                    <p id="msg-nova-filial" class="text-xs text-red-600 font-medium hidden"></p>
+                                    <button type="submit" class="bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2.5 px-6 rounded transition-all text-xs uppercase tracking-widest">
+                                        <i class="fas fa-plus mr-2"></i> Adicionar filial
+                                    </button>
+                                </form>
+                                <div>
+                                    <p class="text-xs text-slate-400 mb-2">Defina se cada filial recebe sugestões <strong>semanalmente</strong> ou <strong>quinzenalmente</strong>, o dia da semana e o início do ciclo.</p>
+                                    <div id="lista-filiais"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Regras de bloqueio -->
+                        <div class="bg-white border border-slate-200 rounded-sm overflow-hidden">
+                            <button onclick="toggleAccordion('cfg-regras')" class="w-full flex items-center justify-between gap-3 p-5 text-left hover:bg-slate-50 transition-colors">
+                                <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                                    <i class="fas fa-ban text-red-500"></i> Regras de bloqueio de transferência
+                                </h3>
+                                <i id="seta-cfg-regras" class="fas fa-chevron-down text-slate-400 transition-transform"></i>
+                            </button>
+                            <div id="cfg-regras" class="hidden border-t border-slate-100 px-5 py-4">
+                                <p class="text-xs text-slate-400 mb-4">Bloqueie transferências entre filiais específicas. O lojista verá um aviso ao tentar registrar um pedido avulso bloqueado.</p>
+                                <form id="form-regra" class="space-y-4">
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div>
+                                            <label class="block text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">Filial de saída</label>
+                                            <div class="relative custom-dropdown w-full" id="dropdown-regra-saida">
+                                                <button type="button" onclick="toggleDropdown('regra-saida')"
+                                                        class="w-full bg-white border border-slate-300 rounded-sm py-2 px-3 text-xs font-bold text-slate-700 flex justify-between items-center hover:border-blue-400 transition-all outline-none">
+                                                    <span id="texto-regra-saida" class="truncate pr-2 text-left">— Selecione —</span>
+                                                    <svg class="seta w-3.5 h-3.5 text-slate-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                    </svg>
+                                                </button>
+                                                <div id="lista-regra-saida" class="hidden absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-sm shadow-lg max-h-60 overflow-y-auto custom-scrollbar">
+                                                    <ul id="opcoes-regra-saida" class="py-1 text-xs text-slate-700 font-bold"></ul>
+                                                </div>
+                                                <input type="hidden" id="input-regra-saida" value="">
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">Filial de destino</label>
+                                            <div class="relative custom-dropdown w-full" id="dropdown-regra-destino">
+                                                <button type="button" onclick="toggleDropdown('regra-destino')"
+                                                        class="w-full bg-white border border-slate-300 rounded-sm py-2 px-3 text-xs font-bold text-slate-700 flex justify-between items-center hover:border-blue-400 transition-all outline-none">
+                                                    <span id="texto-regra-destino" class="truncate pr-2 text-left">— Selecione —</span>
+                                                    <svg class="seta w-3.5 h-3.5 text-slate-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                    </svg>
+                                                </button>
+                                                <div id="lista-regra-destino" class="hidden absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-sm shadow-lg max-h-60 overflow-y-auto custom-scrollbar">
+                                                    <ul id="opcoes-regra-destino" class="py-1 text-xs text-slate-700 font-bold"></ul>
+                                                </div>
+                                                <input type="hidden" id="input-regra-destino" value="">
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">Motivo (opcional)</label>
+                                            <input type="text" id="regra-motivo" placeholder="Ex.: CD sem saldo"
+                                                   class="w-full px-3 py-2 rounded border text-sm outline-none transition-all bg-slate-50 border-slate-200 focus:ring-2 focus:ring-blue-700/20 focus:border-blue-700">
+                                        </div>
+                                    </div>
+                                    <p id="msg-regra" class="text-xs text-red-600 font-medium hidden"></p>
+                                    <button type="submit" id="btn-regra" class="bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2.5 px-6 rounded transition-all text-xs uppercase tracking-widest">
+                                        <i class="fas fa-plus mr-2"></i> Criar regra
+                                    </button>
+                                </form>
+                                <div id="lista-regras" class="mt-4"></div>
+                            </div>
+                        </div>
+
+                        <!-- Dia liberado -->
+                        <div class="bg-white border border-slate-200 rounded-sm overflow-hidden">
+                            <button onclick="toggleAccordion('cfg-dia')" class="w-full flex items-center justify-between gap-3 p-5 text-left hover:bg-slate-50 transition-colors">
+                                <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                                    <i class="fas fa-calendar-check text-blue-700"></i> Dia liberado para pedidos avulsos
+                                </h3>
+                                <i id="seta-cfg-dia" class="fas fa-chevron-down text-slate-400 transition-transform"></i>
+                            </button>
+                            <div id="cfg-dia" class="hidden border-t border-slate-100 px-5 py-4">
+                                <p class="text-xs text-slate-400 mb-4">Nesse dia da semana as lojas podem registrar pedidos avulsos. Fora dele, o botão fica bloqueado com o lembrete do próximo dia.</p>
+                                <div class="relative custom-dropdown w-full sm:w-64" id="dropdown-dia-liberacao">
+                                    <button type="button" onclick="toggleDropdown('dia-liberacao')"
+                                            class="w-full bg-white border border-slate-300 rounded-sm py-2 px-3 text-xs font-bold text-slate-700 flex justify-between items-center hover:border-blue-400 transition-all outline-none">
+                                        <span id="texto-dia-liberacao" class="truncate pr-2 text-left">— Escolha o dia —</span>
+                                        <svg class="seta w-3.5 h-3.5 text-slate-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                        </svg>
+                                    </button>
+                                    <div id="lista-dia-liberacao" class="hidden absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-sm shadow-lg max-h-60 overflow-y-auto custom-scrollbar">
+                                        <ul id="opcoes-dia-liberacao" class="py-1 text-xs text-slate-700 font-bold"></ul>
+                                    </div>
+                                    <input type="hidden" id="input-dia-liberacao" value="">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Usuários -->
+                        <div class="bg-white border border-slate-200 rounded-sm overflow-hidden">
+                            <button onclick="toggleAccordion('cfg-usuarios')" class="w-full flex items-center justify-between gap-3 p-5 text-left hover:bg-slate-50 transition-colors">
+                                <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                                    <i class="fas fa-users text-blue-700"></i> Usuários cadastrados
+                                </h3>
+                                <i id="seta-cfg-usuarios" class="fas fa-chevron-down text-slate-400 transition-transform"></i>
+                            </button>
+                            <div id="cfg-usuarios" class="hidden border-t border-slate-100 px-5 py-4">
+                                <div id="lista-usuarios"></div>
+                            </div>
                         </div>
                     </section>
 
@@ -533,7 +553,7 @@
                       class="w-full border border-slate-300 rounded-sm p-2.5 text-sm outline-none focus:border-blue-500"></textarea>
             <label class="flex items-center gap-2 mt-3 cursor-pointer select-none">
                 <input type="checkbox" id="check-negar-permanente" class="w-4 h-4 text-red-600 rounded border-slate-300 cursor-pointer">
-                <span class="text-xs text-slate-600">Negar permanentemente — o lojista <strong>não poderá</strong> responder/ajustar</span>
+                <span class="text-xs text-slate-600">Negar definitivamente — o lojista <strong>não poderá</strong> responder/ajustar</span>
             </label>
             <p id="msg-modal-negar" class="text-xs text-red-600 font-medium mt-2 hidden"></p>
             <button onclick="confirmarNegacao()" class="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-3 rounded-sm uppercase text-sm mt-4 transition-colors">
@@ -547,7 +567,7 @@
         <div class="bg-white rounded-sm shadow-xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto custom-scrollbar">
             <button onclick="fecharModalAutorizacoes()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors text-2xl font-medium leading-none outline-none">&times;</button>
             <h2 class="text-lg font-bold text-slate-800 mb-1">Exigir autorizações</h2>
-            <p class="text-xs text-slate-500 mb-4">Selecione <strong>uma ou mais pessoas</strong> que precisam dar o OK antes de você aprovar. A venda só poderá ser aprovada quando <strong>todos</strong> aprovarem.</p>
+            <p class="text-xs text-slate-500 mb-4">Selecione <strong>uma ou mais pessoas</strong> que precisam dar o OK antes de você aprovar. O pedido só poderá ser aprovado quando <strong>todos</strong> aprovarem.</p>
             <div id="lista-opcoes-autorizacao" class="space-y-1 max-h-64 overflow-y-auto custom-scrollbar"></div>
             <p id="msg-modal-autorizacoes" class="text-xs text-red-600 font-medium mt-2 hidden"></p>
             <button onclick="confirmarAutorizacoes()" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-3 rounded-sm uppercase text-sm mt-4 transition-colors">
