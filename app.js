@@ -877,26 +877,39 @@ function abrirModalDetalheVenda(id) {
     ? v.evidencias
     : (v.arquivo_nome ? [{ nome: v.arquivo_nome, conteudo: v.arquivo_conteudo }] : []);
 
-  // ---- BLOCO 1: PEDIDO ENVIADO ----
-  const blocoPedido = blocoFase("Pedido enviado", [
-    `<p class="text-[11px] text-slate-500"><strong>Solicitante:</strong> ${escapeHtml(v.usuario_nome || nomeLoja(v.loja_id))} · ${dataHoraBr(v.data_envio)}</p>`,
-    `<div class="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 flex-wrap">
-      <span class="bg-white border border-slate-200 px-1.5 py-0.5 rounded-sm">Saída: ${nomeLoja(v.filial_saida)}</span>
-      <i class="fas fa-arrow-right text-slate-300 text-[9px]"></i>
-      <span class="bg-white border border-slate-200 px-1.5 py-0.5 rounded-sm">Destino: ${nomeLoja(v.filial_destino)}</span>
-    </div>`,
-    evidencias.length ? `<p class="text-[11px] text-slate-500"><i class="fas fa-paperclip text-slate-300 mr-1"></i>${evidencias.map((ev, i) => `<a href="#" onclick="event.preventDefault(); baixarEvidencia('${v.id}', ${i})" class="text-blue-700 font-bold">${escapeHtml(ev.nome)}</a>`).join(" · ")}</p>` : "",
-    v.obs ? `<p class="text-[11px] text-slate-500"><i class="fas fa-comment-dots text-indigo-300 mr-1"></i>${escapeHtml(v.obs)}</p>` : ""
-  ]);
+  // ⬅ BLOCO 1: PEDIDO ENVIADO (espaçoso, evidências uma abaixo da outra, obs em sub-bloco)
+  const blocoPedido = `
+    <div>
+      <span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide block mb-1.5">Pedido enviado</span>
+      <div class="border border-slate-200 bg-slate-50/60 rounded-sm px-4 py-3 flex flex-col gap-2">
+        <p class="text-xs text-slate-600"><strong>Solicitante:</strong> ${escapeHtml(v.usuario_nome || nomeLoja(v.loja_id))}</p>
+        <p class="text-xs text-slate-600"><strong>Data:</strong> ${dataHoraBr(v.data_envio)}</p>
+        <div class="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 flex-wrap">
+          <span class="bg-white border border-slate-200 px-1.5 py-0.5 rounded-sm">Saída: ${nomeLoja(v.filial_saida)}</span>
+          <i class="fas fa-arrow-right text-slate-300 text-[9px]"></i>
+          <span class="bg-white border border-slate-200 px-1.5 py-0.5 rounded-sm">Destino: ${nomeLoja(v.filial_destino)}</span>
+        </div>
+        ${evidencias.length ? `
+        <div class="flex flex-col gap-1.5">
+          <span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide">Evidências</span>
+          ${evidencias.map((ev, i) => `<p class="text-xs text-slate-500"><i class="fas fa-paperclip text-slate-300 mr-1"></i><a href="#" onclick="event.preventDefault(); baixarEvidencia('${v.id}', ${i})" class="text-blue-700 font-bold">${escapeHtml(ev.nome)}</a></p>`).join("")}
+        </div>` : ""}
+        ${v.obs ? `
+        <div class="border border-slate-200 bg-white rounded-sm px-3 py-2">
+          <span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide block mb-1">O que foi escrito</span>
+          <p class="text-xs text-slate-600"><i class="fas fa-comment-dots text-indigo-300 mr-1"></i>${escapeHtml(v.obs)}</p>
+        </div>` : ""}
+      </div>
+    </div>`;
 
   // ⬅ Duas ações: Negar (loja pode ajustar) e Negar definitivo (sem retorno)
   let acoes = "";
   if (v.status === "pendente") {
     acoes = `
-      <button onclick="fecharModalDetalhe(); abrirModalNegar('${v.id}', false)" class="border border-red-200 text-red-600 hover:bg-red-50 px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap">
+      <button onclick="fecharModalDetalhe(); abrirModalNegar('${v.id}')" class="border border-red-200 text-red-600 hover:bg-red-50 px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap">
         <i class="fas fa-times mr-1"></i> Negar
       </button>
-      <button onclick="fecharModalDetalhe(); abrirModalNegar('${v.id}', true)" class="bg-red-700 hover:bg-red-800 text-white px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap" title="A loja NÃO poderá responder">
+      <button onclick="fecharModalDetalhe(); abrirModalNegarDefinitivo('${v.id}')" class="bg-red-700 hover:bg-red-800 text-white px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap" title="A loja NÃO poderá responder">
         <i class="fas fa-ban mr-1"></i> Negar definitivo
       </button>
       <button onclick="fecharModalDetalhe(); abrirModalPedido('vendaCasada', '${v.id}')" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap">
@@ -918,9 +931,32 @@ function abrirModalDetalheVenda(id) {
          </button>`;
   }
 
-  // ⬅ BLOCO FINAL: RESPOSTA DO ADMIN (sempre por último)
-  let blocoResposta = "";
-  if (v.status === "aprovado") {
+  // ⬅ RESPOSTAS DO ADMIN: histórico completo (negativas NUNCA somem) ou legado
+  const historico = Array.isArray(v.historico_respostas) ? v.historico_respostas : [];
+  let blocoResposta;
+  if (historico.length) {
+    blocoResposta = historico.map(h => {
+      if (h.tipo === "aprovado") {
+        return `
+          <div>
+            <span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide block mb-1">Resposta do admin — APROVADO</span>
+            <div class="border border-green-200 bg-green-50 rounded-sm px-3 py-2 flex flex-col gap-1">
+              ${(h.pedidos || []).length ? blocoPedidos(h.pedidos) : `<p class="text-[11px] text-green-700 italic">Sem pedidos registrados.</p>`}
+              <p class="text-[11px] text-green-700"><strong>Concluído em:</strong> ${dataHoraBr(h.data)} &nbsp;·&nbsp; <strong>por:</strong> ${escapeHtml(h.por || "Admin")}</p>
+            </div>
+          </div>`;
+      }
+      const def = h.tipo === "negado_permanente";
+      return `
+        <div>
+          <span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide block mb-1">Resposta do admin — ${def ? "NEGADO DEFINITIVAMENTE" : "NEGADO"}</span>
+          <div class="border border-red-200 bg-red-50 rounded-sm px-3 py-2 flex flex-col gap-1">
+            ${h.motivo ? `<p class="text-[11px] text-red-600"><i class="fas fa-ban text-red-300 mr-1"></i><strong>${escapeHtml(h.motivo)}</strong></p>` : ""}
+            <p class="text-[11px] text-red-600"><strong>${def ? "Negado definitivamente em:" : "Negado em:"}</strong> ${dataHoraBr(h.data)} &nbsp;·&nbsp; <strong>por:</strong> ${escapeHtml(h.por || "Admin")}</p>
+          </div>
+        </div>`;
+    }).join("");
+  } else if (v.status === "aprovado") {
     blocoResposta = `
       <div>
         <span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide block mb-1">Resposta do admin — APROVADO</span>
@@ -929,16 +965,18 @@ function abrirModalDetalheVenda(id) {
           <p class="text-[11px] text-green-700"><strong>Concluído em:</strong> ${dataHoraBr(v.data_resposta)} &nbsp;·&nbsp; <strong>por:</strong> ${escapeHtml(v.respondido_por || "Admin")}</p>
         </div>
       </div>`;
-  }
-  if (v.status === "negado" || v.status === "negado_permanente") {
+  } else if (v.status === "negado" || v.status === "negado_permanente") {
+    const def = v.status === "negado_permanente";
     blocoResposta = `
       <div>
-        <span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide block mb-1">Resposta do admin — ${v.status === "negado_permanente" ? "NEGADO DEFINITIVAMENTE" : "NEGADO"}</span>
+        <span class="text-slate-400 font-bold uppercase text-[9px] tracking-wide block mb-1">Resposta do admin — ${def ? "NEGADO DEFINITIVAMENTE" : "NEGADO"}</span>
         <div class="border border-red-200 bg-red-50 rounded-sm px-3 py-2 flex flex-col gap-1">
           ${v.motivo_negacao ? `<p class="text-[11px] text-red-600"><i class="fas fa-ban text-red-300 mr-1"></i><strong>${escapeHtml(v.motivo_negacao)}</strong></p>` : ""}
-          <p class="text-[11px] text-red-600"><strong>${v.status === "negado_permanente" ? "Negado definitivamente em:" : "Negado em:"}</strong> ${dataHoraBr(v.data_resposta)} &nbsp;·&nbsp; <strong>por:</strong> ${escapeHtml(v.respondido_por || "Admin")}</p>
+          <p class="text-[11px] text-red-600"><strong>${def ? "Negado definitivamente em:" : "Negado em:"}</strong> ${dataHoraBr(v.data_resposta)} &nbsp;·&nbsp; <strong>por:</strong> ${escapeHtml(v.respondido_por || "Admin")}</p>
         </div>
       </div>`;
+  } else {
+    blocoResposta = "";
   }
 
   const ajustesHtml = (Array.isArray(v.ajustes) && v.ajustes.length) ? `
@@ -1161,8 +1199,18 @@ async function confirmarPedido() {
       renderizarTransferencias();
       renderizarInicio();
     } else {
+      // ⬅ Aprovação também entra no histórico (nunca some)
+      const v = vendasCache[modalContexto.id];
+      const historico = [...(Array.isArray(v?.historico_respostas) ? v.historico_respostas : []),
+        { tipo: "aprovado", pedidos: payload, data: agora, por: usuarioAtual.nome }];
       const { error } = await supabase.from("vendas_casadas")
-        .update({ status: "aprovado", pedidos: payload, data_resposta: agora, respondido_por: usuarioAtual.nome })
+        .update({
+          status: "aprovado",
+          pedidos: payload,
+          data_resposta: agora,
+          respondido_por: usuarioAtual.nome,
+          historico_respostas: historico
+        })
         .eq("id", modalContexto.id);
       if (error) throw error;
       await carregarVendasSupabase();
@@ -1181,21 +1229,20 @@ async function confirmarPedido() {
 }
 
 /* =========================================================
-   MODAL: NEGAR PEDIDO AVULSO (motivo obrigatório + opcional permanente)
+   MODAL: NEGAR (loja pode ajustar) — modal próprio, sem checkbox
    ========================================================= */
 let vendaNegando = null;
 
-function abrirModalNegar(id, definitivo = false) {
+function abrirModalNegar(id) {
   vendaNegando = id;
   const v = vendasCache[id];
   if (!v) return;
   $("modal-negar-info").innerText =
     `${escapeHtml(v.usuario_nome || nomeLoja(v.loja_id))} · pedido avulso (${nomeLoja(v.filial_saida)} → ${nomeLoja(v.filial_destino)}).`;
   $("input-motivo-negacao").value = "";
-  $("check-negar-permanente").checked = definitivo;
   $("msg-modal-negar").classList.add("hidden");
   $("modal-negar").classList.remove("hidden");
-  if (definitivo) $("input-motivo-negacao").focus();
+  $("input-motivo-negacao").focus();
 }
 
 function fecharModalNegar() {
@@ -1210,14 +1257,17 @@ async function confirmarNegacao() {
     $("msg-modal-negar").classList.remove("hidden");
     return;
   }
-  const permanente = $("check-negar-permanente")?.checked || false;
-  if (permanente && !confirm("Negar DEFINITIVAMENTE?\n\nA loja NÃO poderá responder ou ajustar este pedido. Essa ação não pode ser desfeita.")) return;
+  const agora = new Date().toISOString();
+  const v = vendasCache[vendaNegando];
+  const historico = [...(Array.isArray(v?.historico_respostas) ? v.historico_respostas : []),
+    { tipo: "negado", motivo, data: agora, por: usuarioAtual.nome }];
   const { error } = await supabase.from("vendas_casadas")
     .update({
-      status: permanente ? "negado_permanente" : "negado",
+      status: "negado",
       motivo_negacao: motivo,
-      data_resposta: new Date().toISOString(),
-      respondido_por: usuarioAtual.nome
+      data_resposta: agora,
+      respondido_por: usuarioAtual.nome,
+      historico_respostas: historico
     })
     .eq("id", vendaNegando);
   if (error) { mostrarToast("Erro: " + error.message); return; }
@@ -1225,7 +1275,57 @@ async function confirmarNegacao() {
   await carregarVendasSupabase();
   renderizarVendas();
   renderizarInicio();
-  mostrarToast(permanente ? "Pedido negado permanentemente." : "Pedido negado — o lojista poderá ajustar e responder.");
+  mostrarToast("Pedido negado — o lojista poderá ajustar e responder.");
+}
+
+/* =========================================================
+   MODAL: NEGAR DEFINITIVO — modal próprio, sem retorno da loja
+   ========================================================= */
+let vendaNegandoDef = null;
+
+function abrirModalNegarDefinitivo(id) {
+  vendaNegandoDef = id;
+  const v = vendasCache[id];
+  if (!v) return;
+  $("modal-negar-definitivo-info").innerText =
+    `${escapeHtml(v.usuario_nome || nomeLoja(v.loja_id))} · pedido avulso (${nomeLoja(v.filial_saida)} → ${nomeLoja(v.filial_destino)}).`;
+  $("input-motivo-negacao-def").value = "";
+  $("msg-modal-negar-def").classList.add("hidden");
+  $("modal-negar-definitivo").classList.remove("hidden");
+  $("input-motivo-negacao-def").focus();
+}
+
+function fecharModalNegarDefinitivo() {
+  $("modal-negar-definitivo").classList.add("hidden");
+  vendaNegandoDef = null;
+}
+
+async function confirmarNegacaoDefinitiva() {
+  const motivo = $("input-motivo-negacao-def").value.trim();
+  if (!motivo) {
+    $("msg-modal-negar-def").innerText = "Escreva o motivo da negativa definitiva.";
+    $("msg-modal-negar-def").classList.remove("hidden");
+    return;
+  }
+  const agora = new Date().toISOString();
+  const v = vendasCache[vendaNegandoDef];
+  const historico = [...(Array.isArray(v?.historico_respostas) ? v.historico_respostas : []),
+    { tipo: "negado_permanente", motivo, data: agora, por: usuarioAtual.nome }];
+  const { error } = await supabase.from("vendas_casadas")
+    .update({
+      status: "negado_permanente",
+      motivo_negacao: motivo,
+      data_resposta: agora,
+      respondido_por: usuarioAtual.nome,
+      historico_respostas: historico
+    })
+    .eq("id", vendaNegandoDef);
+  if (error) { mostrarToast("Erro: " + error.message); return; }
+  fecharModalNegarDefinitivo();
+  await carregarVendasSupabase();
+  renderizarVendas();
+  renderizarInicio();
+  mostrarToast("Pedido negado definitivamente — sem retorno da loja.");
 }
 
 /* =========================================================
@@ -1755,7 +1855,7 @@ Object.assign(window, {
   confirmarPedido, adicionarLinhaPedido, baixarTransfPorId, baixarVendaPorId, baixarEvidencia,
   aprovarUsuario, reprovarUsuario, excluirFilial,
   abrirModalNegar, fecharModalNegar, confirmarNegacao,
-  abrirModalAutorizacoes, fecharModalAutorizacoes, confirmarAutorizacoes,
+  abrirModalNegarDefinitivo, fecharModalNegarDefinitivo, confirmarNegacaoDefinitiva,
   mudarMes,
   fecharModalDetalhe, abrirModalDetalheTransf, abrirModalDetalheVenda, abrirModalDia,
   abrirModalSugestao, fecharModalSugestao,
